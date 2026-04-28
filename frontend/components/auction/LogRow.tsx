@@ -9,12 +9,22 @@ function agentToneClass(tone: AuctionLogRow["agentTone"]) {
   return "text-[var(--yellow)]";
 }
 
+function verbToneClass(verb: AuctionLogRow["verb"]) {
+  if (verb === "WIN" || verb === "SETTLE") return "text-[var(--green)] font-bold";
+  if (verb === "FAILOVER") return "text-[var(--green)] font-bold";
+  if (verb === "BREACH" || verb === "SLASH_TX") return "text-[var(--red)] font-bold";
+  if (verb === "COALITION_INVITE" || verb === "JOIN" || verb === "BID")
+    return "text-[var(--purple)]";
+  if (verb === "OFFER" || verb === "COUNTER") return "text-[var(--text-muted)]";
+  return "text-[var(--text-muted)]";
+}
+
 export function LogRow({ row }: { row: AuctionLogRow }) {
   const base =
     "flex items-baseline gap-3 px-4 py-1 text-[12px] leading-[1.6] [animation:auctionFadeIn_0.25s_ease]";
 
   const winTone = row.win ? "text-[var(--green)] font-bold" : "";
-  const verbTone = row.win ? "text-[var(--green)] font-bold" : "text-[var(--text-muted)]";
+  const verbTone = row.win ? "text-[var(--green)] font-bold" : verbToneClass(row.verb);
 
   return (
     <div className={[base, row.win ? "text-[var(--green)]" : ""].join(" ")}>
