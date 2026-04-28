@@ -12,7 +12,7 @@ export function ComputePoolDemo() {
   const demo = useDemoLoop();
 
   return (
-    <div className="mx-auto w-full max-w-[1280px] px-7 pb-[60px] pt-8">
+    <div className="w-full px-6 pb-[60px] pt-8 sm:px-8 md:px-10 lg:px-12 xl:px-16">
       <Header playing={demo.playing} onPlay={demo.play} onReset={demo.reset} />
 
       <PhaseTimeline activeStep={demo.timelineStep} />
