@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import {
   DEFAULT_MESH_LINKS,
   DEFAULT_MESH_NODES,
@@ -10,31 +10,29 @@ import {
 } from "@/lib/constants";
 import { MeshEdge } from "@/components/mesh/MeshEdge";
 import { MeshNode } from "@/components/mesh/MeshNode";
-import { useAXLStream } from "@/components/mesh/useAXLStream";
 
 function clamp(n: number, min: number, max: number) {
   return Math.max(min, Math.min(max, n));
 }
 
-export function AXLMesh() {
+export function AXLMesh({
+  nodeStates,
+  linkStates,
+  activeChannels,
+  jobsInFlight,
+}: {
+  nodeStates: Record<string, MeshNodeState>;
+  linkStates: Record<string, MeshLinkState>;
+  activeChannels: string;
+  jobsInFlight: string;
+}) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [hoveredNodeIdx, setHoveredNodeIdx] = useState<number | null>(null);
   const [mouse, setMouse] = useState<{ x: number; y: number } | null>(null);
 
-  const [nodeDefs] = useState<MeshNodeDef[]>(() => DEFAULT_MESH_NODES);
-  const [nodeStates, setNodeStates] = useState<Record<string, MeshNodeState>>(() =>
-    Object.fromEntries(DEFAULT_MESH_NODES.map((n) => [n.id, "idle"] as const)),
-  );
+  const nodeDefs: MeshNodeDef[] = DEFAULT_MESH_NODES;
 
-  const [linkStates, setLinkStates] = useState<Record<string, MeshLinkState>>(() =>
-    Object.fromEntries(
-      DEFAULT_MESH_LINKS.map((l) => [`${l.a}-${l.b}`, "inactive"] as const),
-    ),
-  );
-
-  const { events } = useAXLStream({ enabled: true });
-
-  const activeChannels = useMemo(
+  const activePulseCount = useMemo(
     () =>
       Object.values(linkStates).reduce(
         (n, s) => n + (s === "active" ? 1 : 0),
@@ -43,33 +41,6 @@ export function AXLMesh() {
     [linkStates],
   );
 
-  useEffect(() => {
-    if (events.length === 0) return;
-    const last = events[events.length - 1];
-
-    if (last.kind === "message") {
-      const aIdx = nodeDefs.findIndex((n) => n.id === last.from);
-      const bIdx = nodeDefs.findIndex((n) => n.id === last.to);
-      if (aIdx >= 0 && bIdx >= 0) {
-        const key =
-          aIdx < bIdx ? `${aIdx}-${bIdx}` : `${bIdx}-${aIdx}`;
-        setLinkStates((prev) => ({ ...prev, [key]: "active" }));
-        window.setTimeout(() => {
-          setLinkStates((prev) => ({ ...prev, [key]: "inactive" }));
-        }, 650);
-      }
-    }
-
-    if (last.kind === "node_state") {
-      setNodeStates((prev) => ({ ...prev, [last.nodeId]: last.state }));
-      if (last.ttlMs) {
-        window.setTimeout(() => {
-          setNodeStates((prev) => ({ ...prev, [last.nodeId]: "idle" }));
-        }, last.ttlMs);
-      }
-    }
-  }, [events, nodeDefs]);
-
   function onMouseMove(e: React.MouseEvent) {
     const rect = containerRef.current?.getBoundingClientRect();
     if (!rect) return;
@@ -77,8 +48,7 @@ export function AXLMesh() {
   }
 
   const tooltip = hoveredNodeIdx != null ? nodeDefs[hoveredNodeIdx] : null;
-  const tooltipState =
-    tooltip ? nodeStates[tooltip.id] ?? "idle" : null;
+  const tooltipState = tooltip ? nodeStates[tooltip.id] ?? "idle" : null;
   const tooltipPos = useMemo(() => {
     if (!mouse) return null;
     const pad = 12;
@@ -93,7 +63,7 @@ export function AXLMesh() {
 
   return (
     <section
-      className="border border-[var(--border)] bg-[var(--bg-panel)]"
+      className="mb-[18px] border border-[var(--border)] bg-[var(--bg-panel)]"
       aria-label="AXL Mesh"
     >
       <div className="flex items-center justify-between border-b border-[var(--border)] px-4 py-2 text-[10px] uppercase tracking-[0.12em] text-[var(--text-muted)]">
@@ -105,10 +75,16 @@ export function AXLMesh() {
           </span>
           <span>
             Active channels{" "}
-            <b className="ml-1 font-medium text-[var(--text)]">{activeChannels}</b>
+            <b className="ml-1 font-medium text-[var(--text)]">
+              {activeChannels}
+            </b>
+            {activePulseCount > 0 ? (
+              <span className="ml-2 text-[var(--text-faint)]">· pulse</span>
+            ) : null}
           </span>
           <span>
-            Jobs in flight <b className="ml-1 font-medium text-[var(--text)]">0</b>
+            Jobs in flight{" "}
+            <b className="ml-1 font-medium text-[var(--text)]">{jobsInFlight}</b>
           </span>
         </div>
       </div>
@@ -160,7 +136,6 @@ export function AXLMesh() {
           })}
         </svg>
 
-        {/* Legend */}
         <div className="absolute bottom-3 left-4 flex gap-4 text-[10px] uppercase tracking-[0.08em] text-[var(--text-faint)]">
           <LegendDot label="Idle" color="var(--text-faint)" />
           <LegendDot label="Bidding" color="var(--yellow)" />
@@ -169,7 +144,6 @@ export function AXLMesh() {
           <LegendDot label="Slashed" color="var(--red)" />
         </div>
 
-        {/* Tooltip */}
         {tooltip && tooltipPos && (
           <div
             className="pointer-events-none absolute z-10 w-[320px] border border-[var(--border-soft)] bg-[var(--bg-elev)] px-3 py-2 text-[11px]"
@@ -177,7 +151,8 @@ export function AXLMesh() {
           >
             <div className="mb-1 flex items-baseline justify-between">
               <div className="text-[12px] font-medium text-[var(--text)]">
-                {tooltip.id} <span className="ml-2 text-[var(--text-muted)]">{tooltip.role}</span>
+                {tooltip.id}{" "}
+                <span className="ml-2 text-[var(--text-muted)]">{tooltip.role}</span>
               </div>
               <div className="text-[10px] uppercase tracking-[0.08em] text-[var(--text-faint)]">
                 {tooltipState}
@@ -194,25 +169,6 @@ export function AXLMesh() {
           </div>
         )}
       </div>
-
-      <style jsx global>{`
-        @keyframes meshDash {
-          to {
-            stroke-dashoffset: -10;
-          }
-        }
-        @keyframes pulse {
-          0% {
-            box-shadow: 0 0 0 0 rgba(0, 255, 156, 0.7);
-          }
-          70% {
-            box-shadow: 0 0 0 8px rgba(0, 255, 156, 0);
-          }
-          100% {
-            box-shadow: 0 0 0 0 rgba(0, 255, 156, 0);
-          }
-        }
-      `}</style>
     </section>
   );
 }
@@ -225,4 +181,3 @@ function LegendDot({ label, color }: { label: string; color: string }) {
     </span>
   );
 }
-

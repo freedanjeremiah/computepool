@@ -24,4 +24,3 @@ export function LeadingBid({ leading }: { leading: AuctionLeading }) {
     </div>
   );
 }
-

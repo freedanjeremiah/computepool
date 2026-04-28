@@ -3,6 +3,8 @@
 import type { AuctionJob } from "@/components/auction/types";
 
 export function JobCard({ job }: { job: AuctionJob }) {
+  const awaiting = job.jobId === "awaiting…";
+
   return (
     <div className="border-b border-[var(--border)] bg-[var(--bg-elev)] px-4 py-3.5">
       <div className="mb-1 text-[10px] uppercase tracking-[0.12em] text-[var(--text-faint)]">
@@ -20,7 +22,9 @@ export function JobCard({ job }: { job: AuctionJob }) {
         </span>
         <span>
           budget{" "}
-          <b className="font-medium text-[var(--text)]">{job.budgetEth} ETH</b>
+          <b className="font-medium text-[var(--text)]">
+            {awaiting ? "— ETH" : `${job.budgetEth} ETH`}
+          </b>
         </span>
         <span>
           deadline{" "}
@@ -30,4 +34,3 @@ export function JobCard({ job }: { job: AuctionJob }) {
     </div>
   );
 }
-

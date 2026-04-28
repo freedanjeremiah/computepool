@@ -1,29 +1,36 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { PIPELINE_SHARDS, usePipelineDemo } from "@/hooks/usePipelineDemo";
+import { PIPELINE_SHARDS } from "@/lib/pipeline";
 import { PipelineShard } from "@/components/pipeline/PipelineShard";
 import { StatCards } from "@/components/pipeline/StatCards";
 import { SlashBanner } from "@/components/pipeline/SlashBanner";
 import type { ActivationParticle } from "@/components/pipeline/types";
+import type { PipelineShardState } from "@/components/pipeline/types";
 
 function lerp(a: number, b: number, t: number) {
   return a + (b - a) * t;
 }
 
-export function PipelineView() {
-  const {
-    tps,
-    curLayer,
-    tokenCount,
-    payoutEth,
-    hashCount,
-    shardStates,
-    slashVisible,
-    particles,
-  } = usePipelineDemo({ enabled: true });
-
-  // Render particle positions using RAF so motion stays smooth.
+export function PipelineView({
+  tps,
+  curLayer,
+  tokenCount,
+  payoutEth,
+  hashCount,
+  shardStates,
+  slashVisible,
+  particles,
+}: {
+  tps: number;
+  curLayer: string;
+  tokenCount: number;
+  payoutEth: number;
+  hashCount: number;
+  shardStates: Record<string, PipelineShardState>;
+  slashVisible: boolean;
+  particles: ActivationParticle[];
+}) {
   const [renderParticles, setRenderParticles] = useState<ActivationParticle[]>([]);
   const rafRef = useRef<number | null>(null);
 
@@ -120,7 +127,11 @@ export function PipelineView() {
                 cx={cx}
                 cy={100}
                 r={4}
-                className={p.failed ? "fill-[var(--red)]" : "fill-[var(--green)]"}
+                className={
+                  p.failed
+                    ? "fill-[var(--red)] [filter:drop-shadow(0_0_4px_var(--red))]"
+                    : "fill-[var(--green)] [filter:drop-shadow(0_0_4px_var(--green))]"
+                }
               />
             );
           })}
@@ -137,4 +148,3 @@ export function PipelineView() {
     </section>
   );
 }
-
