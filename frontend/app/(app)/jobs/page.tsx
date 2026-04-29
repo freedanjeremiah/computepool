@@ -1,8 +1,9 @@
 import Link from "next/link";
+import { AppPage } from "@/components/layout/AppPage";
 
 export default function JobsPage() {
   return (
-    <div className="px-8 py-8">
+    <AppPage>
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1
@@ -61,6 +62,6 @@ export default function JobsPage() {
           View →
         </Link>
       </div>
-    </div>
+    </AppPage>
   );
 }

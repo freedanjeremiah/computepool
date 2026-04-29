@@ -1,6 +1,8 @@
+import { AppPage } from "@/components/layout/AppPage";
+
 export default function WalletPage() {
   return (
-    <div className="px-8 py-8">
+    <AppPage>
       <div className="mb-6">
         <h1
           className="text-[22px] text-[var(--text)]"
@@ -67,6 +69,6 @@ export default function WalletPage() {
       <p className="mt-8 text-center text-[10px] text-[var(--text-faint)] uppercase tracking-[0.12em]">
         Live wallet via 0G iNFT SDK — task 4
       </p>
-    </div>
+    </AppPage>
   );
 }

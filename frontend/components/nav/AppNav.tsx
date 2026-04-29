@@ -54,10 +54,7 @@ export function AppNav() {
   const pathname = usePathname();
 
   return (
-    <nav
-      className="fixed top-0 left-0 h-screen w-[200px] flex flex-col border-r border-[var(--border)] bg-[var(--bg-panel)]"
-      style={{ zIndex: 50 }}
-    >
+    <nav className="sticky top-0 h-screen w-[200px] shrink-0 flex flex-col border-r border-[var(--border)] bg-[var(--bg-panel)] overflow-y-auto">
       <div className="px-5 py-5 border-b border-[var(--border)]">
         <Link href="/" className="block">
           <span

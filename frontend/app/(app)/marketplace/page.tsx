@@ -1,6 +1,8 @@
+import { AppPage } from "@/components/layout/AppPage";
+
 export default function MarketplacePage() {
   return (
-    <div className="px-8 py-8">
+    <AppPage>
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1
@@ -62,6 +64,6 @@ export default function MarketplacePage() {
       <p className="mt-8 text-center text-[10px] text-[var(--text-faint)] uppercase tracking-[0.12em]">
         Interactive marketplace — task 2
       </p>
-    </div>
+    </AppPage>
   );
 }

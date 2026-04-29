@@ -1,8 +1,9 @@
 import Link from "next/link";
+import { AppPage } from "@/components/layout/AppPage";
 
 export default function NewJobPage() {
   return (
-    <div className="px-8 py-8 max-w-xl">
+    <AppPage narrow>
       <Link
         href="/jobs"
         className="text-[10px] text-[var(--text-faint)] uppercase tracking-[0.14em] hover:text-[var(--text-muted)] transition-colors mb-4 block"
@@ -74,6 +75,6 @@ export default function NewJobPage() {
       <p className="mt-6 text-[10px] text-[var(--text-faint)] text-center uppercase tracking-[0.1em]">
         Full form with 0G integration — task 3
       </p>
-    </div>
+    </AppPage>
   );
 }
