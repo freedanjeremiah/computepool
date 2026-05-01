@@ -1,0 +1,34 @@
+# Python
+**/__pycache__
+**/*.pyc
+**/*.pyo
+**/*.pyd
+.venv
+venv
+.pytest_cache
+.mypy_cache
+.ruff_cache
+
+# Git / VCS
+.git
+.gitignore
+.gitattributes
+
+# Editor / OS
+.vscode
+.idea
+.DS_Store
+
+# Docs (keep root README so the image can ship it if needed)
+*.md
+!README.md
+
+# Runtime artifacts that must never leak into the image
+data/
+*.pem
+*.key
+.env
+.env.*
+
+# Node modules in case any tooling adds them
+node_modules
