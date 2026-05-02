@@ -5,7 +5,7 @@ export class ApiError extends Error {
   }
 }
 
-const BASE =
+export const BASE =
   typeof process !== "undefined" && process.env.NEXT_PUBLIC_ORCHESTRATOR_URL
     ? process.env.NEXT_PUBLIC_ORCHESTRATOR_URL
     : "http://localhost:8000";

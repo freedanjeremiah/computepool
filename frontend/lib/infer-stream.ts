@@ -1,15 +1,13 @@
 // SSE client for /pools/{name}/infer/stream. Yields token / done / settle / error events.
 
+import { BASE } from "./api";
+import type { PaymentRequirements } from "./sign-payment";
+
 export type InferEvent =
   | { event: "token"; request_id: string; seq: number; token_id: number; delta: string }
   | { event: "done"; request_id: string; text: string; tokens: number; elapsed_s: number; tokens_per_sec: number; cost_usdc?: number; pool?: string; entry_node?: string; exit_node?: string; timings?: Record<string, number> }
   | { event: "settle"; request_id?: string; success: boolean; transaction?: string; network?: string; payer?: string; errorReason?: string | null }
   | { event: "error"; request_id?: string; error: string };
-
-const BASE =
-  typeof process !== "undefined" && process.env.NEXT_PUBLIC_ORCHESTRATOR_URL
-    ? process.env.NEXT_PUBLIC_ORCHESTRATOR_URL
-    : "http://localhost:8000";
 
 export type StreamArgs = {
   poolName: string;
@@ -66,3 +64,40 @@ export async function* streamInfer(args: StreamArgs): AsyncGenerator<InferEvent>
     }
   }
 }
+
+/**
+ * POST /pools/{name}/infer/stream without X-PAYMENT and read the 402 challenge.
+ * Returns the first PaymentRequirements entry from accepts[]; throws if the
+ * server didn't reply 402 or didn't include any accepts.
+ */
+export async function fetchPaymentRequirements(args: {
+  poolName: string;
+  prompt: string;
+  maxTokens: number;
+  apiKey: string;
+  temperature?: number;
+}): Promise<PaymentRequirements> {
+  const url = `${BASE}/pools/${encodeURIComponent(args.poolName)}/infer/stream`;
+  const res = await fetch(url, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "X-API-Key": args.apiKey,
+      Accept: "text/event-stream",
+    },
+    body: JSON.stringify({
+      prompt: args.prompt,
+      max_tokens: args.maxTokens,
+      temperature: args.temperature ?? 0.0,
+    }),
+  });
+  if (res.status !== 402) {
+    const txt = await res.text().catch(() => "");
+    throw new Error(`expected 402 challenge, got ${res.status}: ${txt.slice(0, 300)}`);
+  }
+  const body = await res.json();
+  const accepts = Array.isArray(body?.accepts) ? body.accepts : [];
+  if (!accepts.length) throw new Error("402 had no accepts[] entries");
+  return accepts[0] as PaymentRequirements;
+}
+

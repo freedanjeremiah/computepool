@@ -2,39 +2,67 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import { useT, FONT_DISPLAY, FONT_BODY } from "@/components/cp/theme";
-import { Badge, Button, Card, Ticker } from "@/components/cp/primitives";
-import { Stat, LiveJob, EventRow, Sparkline } from "@/components/cp/dashboard-bits";
+import Link from "next/link";
+import { useT, FONT_DISPLAY, FONT_BODY, FONT_MONO } from "@/components/cp/theme";
+import { Badge, Button, Card } from "@/components/cp/primitives";
+import { Stat, EventRow, Sparkline, NodeRow } from "@/components/cp/dashboard-bits";
 import { NetworkGraph } from "@/components/cp/network-graph";
-
-type Event = { kind: "primary" | "purple" | "red" | "amber"; label: string; meta: string; t: string };
-
-const INITIAL_EVENTS: Event[] = [
-  { kind: "primary", label: "Stream started",      meta: "job-0x4f · qwen-pool-1",            t: "2m ago" },
-  { kind: "purple",  label: "Coalition activated", meta: "qwen-pool-1 · 0xabc…f019",          t: "2m ago" },
-  { kind: "primary", label: "Inference complete",  meta: "job-0x39 · 0.082 USDCx",            t: "8m ago" },
-  { kind: "purple",  label: "Node registered",     meta: "node-g · 0xfff…2244",               t: "24m ago" },
-  { kind: "primary", label: "Pool initialized",    meta: "phi-pool-2",                        t: "1h ago" },
-];
+import { useApiState } from "@/lib/use-api-state";
+import { listJobs, totalsByWindow, ago } from "@/lib/job-history";
 
 export default function DashOverview() {
   const T = useT();
   const router = useRouter();
-  const [streamed, setStreamed] = React.useState(0.24);
-  const [breached, setBreached] = React.useState(false);
-  const [events, setEvents] = React.useState<Event[]>(INITIAL_EVENTS);
+  const { data, authed, loading, error } = useApiState({ pollMs: 5_000 });
+  const [jobs, setJobs] = React.useState(() => (typeof window === "undefined" ? [] : listJobs()));
 
   React.useEffect(() => {
-    const id = setInterval(() => setStreamed((s) => s + 0.0084), 2000);
+    const id = setInterval(() => setJobs(listJobs()), 4_000);
     return () => clearInterval(id);
   }, []);
-  React.useEffect(() => {
-    const id = setTimeout(() => {
-      setBreached(true);
-      setEvents((e) => [{ kind: "red", label: "Breach slashed", meta: "node-b · 0x123…99ab", t: "now" }, ...e]);
-    }, 9000);
-    return () => clearTimeout(id);
-  }, []);
+
+  if (!authed) {
+    return (
+      <Card padding={48} style={{ maxWidth: 560, margin: "120px auto", textAlign: "center" }}>
+        <div style={{ fontFamily: FONT_DISPLAY, fontSize: 22, fontWeight: 600, color: T.text1 }}>
+          Connect to view your network
+        </div>
+        <p style={{ fontFamily: FONT_BODY, fontSize: 14, color: T.text2, margin: "12px 0 24px" }}>
+          You need an orchestrator API key to see live pools, nodes, and jobs.
+        </p>
+        <Button kind="primary" onClick={() => router.push("/connect")}>Sign in →</Button>
+      </Card>
+    );
+  }
+
+  const pools = data?.pools ?? [];
+  const nodes = data?.nodes ?? [];
+  const models = data?.models ?? {};
+  const loadedPools = pools.filter((p) => p.loaded);
+  const initializedPools = pools.filter((p) => p.initialized);
+  const healthy = nodes.filter((n) => n.status === "loaded" || n.status === "configured" || n.status === "registered").length;
+  const totals = totalsByWindow(jobs);
+
+  const events = React.useMemo(() => {
+    const evs: { kind: "primary" | "purple" | "red" | "amber"; label: string; meta: string; t: string }[] = [];
+    for (const j of jobs.slice(0, 4)) {
+      evs.push({
+        kind: j.status === "complete" ? "primary" : "red",
+        label: j.status === "complete" ? "Inference complete" : "Inference failed",
+        meta: `${j.pool} · ${j.tokens ?? 0} tok · ${(j.cost_usdc ?? 0).toFixed(4)} USDC`,
+        t: ago(j.ts),
+      });
+    }
+    for (const p of pools.slice(0, 3)) {
+      evs.push({
+        kind: p.loaded ? "primary" : p.initialized ? "purple" : "amber",
+        label: p.loaded ? "Pool loaded" : p.initialized ? "Pool initialized" : "Pool created",
+        meta: `${p.name} · ${p.model ?? "no model"}`,
+        t: p.updated_at ? new Date(p.updated_at).toLocaleString() : "—",
+      });
+    }
+    return evs.slice(0, 8);
+  }, [jobs, pools]);
 
   return (
     <div>
@@ -44,7 +72,9 @@ export default function DashOverview() {
             Network overview
           </h1>
           <div style={{ fontFamily: FONT_BODY, fontSize: 14, color: T.text2, marginTop: 4 }}>
-            Live state of all pools and operators you manage.
+            {data?.user.username ?? ""} · {nodes.length} nodes · {pools.length} pools
+            {loading && <span style={{ marginLeft: 8, color: T.text3 }}>· refreshing…</span>}
+            {error && <span style={{ marginLeft: 8, color: T.red }}>· {error}</span>}
           </div>
         </div>
         <Button kind="primary" onClick={() => router.push("/infer")}>+ New inference</Button>
@@ -54,35 +84,61 @@ export default function DashOverview() {
         <Card padding={0} style={{ overflow: "hidden" }}>
           <div style={{ padding: "18px 22px", borderBottom: `1px solid ${T.border}`, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <span style={{ fontFamily: FONT_DISPLAY, fontSize: 14, fontWeight: 500, color: T.text2, textTransform: "uppercase", letterSpacing: "0.04em" }}>Network</span>
-            <Badge kind="primary" label="3 jobs streaming"/>
+            <Badge kind="primary" label={`${loadedPools.length} pool${loadedPools.length !== 1 ? "s" : ""} loaded`}/>
           </div>
-          <NetworkGraph width={760} height={520} nodeCount={7} breachId={breached ? 4 : null} breachAt={0}/>
+          <NetworkGraph width={760} height={520} nodeCount={Math.max(nodes.length || 7, 3)} breachId={null} breachAt={null}/>
         </Card>
 
         <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-            <Stat label="Active jobs" value="3"/>
-            <Stat label="USDCx/hr streaming" value={<Ticker value={streamed} decimals={4}/>}/>
-            <Stat label="Healthy nodes" value={breached ? "6 / 7" : "7 / 7"}/>
-            <Stat label="Avg latency" value="11.2 tok/s"/>
+            <Stat label="Active pools"   value={String(loadedPools.length)}/>
+            <Stat label="Initialized"    value={String(initializedPools.length)}/>
+            <Stat label="Healthy nodes"  value={`${healthy} / ${nodes.length || 0}`}/>
+            <Stat label="Models known"   value={String(Object.keys(models).length)}/>
           </div>
 
           <Card padding={0} style={{ overflow: "hidden" }}>
             <div style={{ padding: "14px 18px", borderBottom: `1px solid ${T.border}`, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <span style={{ fontFamily: FONT_DISPLAY, fontSize: 13, fontWeight: 500, color: T.text2, textTransform: "uppercase", letterSpacing: "0.04em" }}>Live jobs</span>
-              <span style={{ fontFamily: FONT_BODY, fontSize: 12, color: T.text3 }}>3 active</span>
+              <span style={{ fontFamily: FONT_DISPLAY, fontSize: 13, fontWeight: 500, color: T.text2, textTransform: "uppercase", letterSpacing: "0.04em" }}>Live pools</span>
+              <Link href="/dashboard/pools" style={{ fontFamily: FONT_BODY, fontSize: 12, color: T.primary, textDecoration: "none" }}>
+                Manage →
+              </Link>
             </div>
-            <LiveJob model="Qwen3-4B" pool="qwen-pool-1" pct={0.64} elapsed="28.4s" breached={breached}/>
-            <div style={{ borderTop: `1px solid ${T.border}` }}/>
-            <LiveJob model="Llama-3.1-8B" pool="llama-pool-1" pct={0.31} elapsed="14.1s" breached={false} small/>
+            {loadedPools.length === 0 ? (
+              <div style={{ padding: 20, fontFamily: FONT_BODY, fontSize: 13, color: T.text3 }}>
+                No loaded pools. Create one in Pools → Initialize → Load.
+              </div>
+            ) : loadedPools.map((p) => {
+              const entry = (p.assignments ?? []).find((a) => a.role === "entry");
+              const exit  = (p.assignments ?? []).find((a) => a.role === "exit");
+              return (
+                <div key={p.name} style={{ padding: "16px 22px", borderTop: `1px solid ${T.border}` }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <div>
+                      <span style={{ fontFamily: FONT_DISPLAY, fontSize: 15, fontWeight: 600, color: T.text1 }}>{p.model ?? "—"}</span>
+                      <span style={{ fontFamily: FONT_BODY, fontSize: 13, color: T.text3, marginLeft: 10 }}>· {p.name}</span>
+                    </div>
+                    <Badge kind="primary" label="loaded"/>
+                  </div>
+                  <div style={{ marginTop: 10, fontFamily: FONT_MONO, fontSize: 12, color: T.text3 }}>
+                    price {(p.price_per_token_usdc ?? 0).toFixed(4)} USDC/tok · {p.node_ids.length} node{p.node_ids.length !== 1 ? "s" : ""}
+                  </div>
+                  <div style={{ marginTop: 10, display: "flex", flexDirection: "column", gap: 6 }}>
+                    {entry && <NodeRow id={entry.node_id} hex={`L${entry.layers[0]}–${entry.layers[1]}`} rate="entry" frozen={false}/>}
+                    {exit  && <NodeRow id={exit.node_id}  hex={`L${exit.layers[0]}–${exit.layers[1]}`}   rate="exit"  frozen={false}/>}
+                  </div>
+                </div>
+              );
+            })}
           </Card>
         </div>
       </div>
 
       <div style={{ display: "grid", gridTemplateColumns: "1.32fr 1fr", gap: 20, marginTop: 20 }}>
         <Card padding={0} style={{ overflow: "hidden" }}>
-          <div style={{ padding: "14px 18px", borderBottom: `1px solid ${T.border}` }}>
-            <span style={{ fontFamily: FONT_DISPLAY, fontSize: 13, fontWeight: 500, color: T.text2, textTransform: "uppercase", letterSpacing: "0.04em" }}>Earnings, last 24h</span>
+          <div style={{ padding: "14px 18px", borderBottom: `1px solid ${T.border}`, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <span style={{ fontFamily: FONT_DISPLAY, fontSize: 13, fontWeight: 500, color: T.text2, textTransform: "uppercase", letterSpacing: "0.04em" }}>Spend, last 24h</span>
+            <span style={{ fontFamily: FONT_MONO, fontSize: 12, color: T.text2 }}>{totals.today.toFixed(4)} USDC today</span>
           </div>
           <div style={{ padding: 24 }}>
             <Sparkline/>
@@ -94,7 +150,11 @@ export default function DashOverview() {
             <span style={{ fontFamily: FONT_DISPLAY, fontSize: 13, fontWeight: 500, color: T.text2, textTransform: "uppercase", letterSpacing: "0.04em" }}>Event feed</span>
           </div>
           <div style={{ maxHeight: 280, overflow: "auto" }}>
-            {events.map((e, i) => <EventRow key={i} {...e}/>)}
+            {events.length === 0 ? (
+              <div style={{ padding: 20, fontFamily: FONT_BODY, fontSize: 13, color: T.text3 }}>
+                No events yet. Run an inference or initialize a pool to see activity here.
+              </div>
+            ) : events.map((e, i) => <EventRow key={i} {...e}/>)}
           </div>
         </Card>
       </div>

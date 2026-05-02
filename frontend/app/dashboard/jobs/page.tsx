@@ -2,28 +2,42 @@
 
 import * as React from "react";
 import { useT, FONT_DISPLAY, FONT_BODY, FONT_MONO } from "@/components/cp/theme";
-import { Badge, Card } from "@/components/cp/primitives";
+import { Badge, Button, Card } from "@/components/cp/primitives";
+import { listJobs, ago, clearJobs, type JobRecord } from "@/lib/job-history";
 
-const COLS = "1.2fr 1fr 1fr 0.7fr 0.8fr 0.7fr 0.8fr 0.8fr";
+const COLS = "1.4fr 1.2fr 1fr 0.7fr 0.7fr 0.7fr 0.7fr 0.8fr";
+const EXPLORER = "https://chainscan-galileo.0g.ai/tx/";
 
 export default function DashJobs() {
   const T = useT();
-  const jobs = React.useMemo(
-    () => Array.from({ length: 12 }, (_, i) => ({
-      id: "0x" + Math.random().toString(16).slice(2, 8) + "…" + Math.random().toString(16).slice(2, 6),
-      model: ["Qwen3-4B", "Llama-3.1-8B", "Mistral-7B", "Phi-3-mini"][i % 4],
-      pool:  ["qwen-pool-1", "llama-pool-1", "mistral-pool-1", "phi-pool-2"][i % 4],
-      dur:   (5 + Math.random() * 40).toFixed(1) + "s",
-      cost:  (Math.random() * 0.2).toFixed(4),
-      tokens: Math.floor(Math.random() * 400 + 50),
-      status: ["complete", "complete", "complete", "degraded", "complete", "complete"][i % 6],
-      time:   ["2m ago", "12m ago", "1h ago", "3h ago", "today", "yesterday"][i % 6],
-    })),
-    [],
-  );
+  const [jobs, setJobs] = React.useState<JobRecord[]>([]);
+  const [open, setOpen] = React.useState<JobRecord | null>(null);
+
+  React.useEffect(() => {
+    setJobs(listJobs());
+    const id = setInterval(() => setJobs(listJobs()), 4_000);
+    return () => clearInterval(id);
+  }, []);
+
   return (
     <div>
-      <h1 style={{ fontFamily: FONT_DISPLAY, fontWeight: 600, fontSize: 32, color: T.text1, letterSpacing: "-0.02em", margin: "0 0 24px" }}>Jobs</h1>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 24 }}>
+        <h1 style={{ fontFamily: FONT_DISPLAY, fontWeight: 600, fontSize: 32, color: T.text1, letterSpacing: "-0.02em", margin: 0 }}>
+          Jobs
+        </h1>
+        {jobs.length > 0 && (
+          <Button kind="ghost" onClick={() => { if (confirm("Clear local job history?")) { clearJobs(); setJobs([]); } }}>
+            Clear history
+          </Button>
+        )}
+      </div>
+
+      <div style={{ marginBottom: 12, fontFamily: FONT_BODY, fontSize: 12, color: T.text3 }}>
+        Stored locally per browser (no server-side jobs DB yet). Each row is one
+        <code style={{ margin: "0 4px" }}>/pools/{"{name}"}/infer/stream</code>
+        run from this device.
+      </div>
+
       <Card padding={0} style={{ overflow: "hidden" }}>
         <div style={{
           display: "grid", gridTemplateColumns: COLS, padding: "14px 22px",
@@ -31,25 +45,112 @@ export default function DashJobs() {
           fontFamily: FONT_BODY, fontSize: 12, color: T.text3, fontWeight: 500,
           textTransform: "uppercase", letterSpacing: "0.04em",
         }}>
-          <span>Job ID</span><span>Model</span><span>Pool</span><span>Duration</span><span>Cost</span>
-          <span>Tokens</span><span>Status</span><span>Time</span>
+          <span>Job</span><span>Model</span><span>Pool</span><span>Duration</span>
+          <span>Cost</span><span>Tokens</span><span>Status</span><span>Time</span>
         </div>
-        {jobs.map((j, i) => (
-          <div key={i} style={{
-            display: "grid", gridTemplateColumns: COLS, padding: "14px 22px",
-            borderBottom: `1px solid ${T.border}`, alignItems: "center",
-          }}>
-            <span style={{ fontFamily: FONT_MONO, fontSize: 12, color: T.text1 }}>{j.id}</span>
+        {jobs.length === 0 ? (
+          <div style={{ padding: 28, fontFamily: FONT_BODY, fontSize: 13, color: T.text3, textAlign: "center" }}>
+            No jobs yet — run an inference at <a href="/infer" style={{ color: T.primary }}>/infer</a>.
+          </div>
+        ) : jobs.map((j) => (
+          <div key={j.request_id} onClick={() => setOpen(j)}
+            style={{
+              display: "grid", gridTemplateColumns: COLS, padding: "14px 22px",
+              borderBottom: `1px solid ${T.border}`, alignItems: "center", cursor: "pointer",
+            }}>
+            <span style={{ fontFamily: FONT_MONO, fontSize: 12, color: T.text1 }}>
+              {j.request_id.slice(0, 8)}…{j.request_id.slice(-6)}
+            </span>
             <span style={{ fontFamily: FONT_BODY, fontSize: 13, color: T.text1 }}>{j.model}</span>
             <span style={{ fontFamily: FONT_MONO, fontSize: 12, color: T.text2 }}>{j.pool}</span>
-            <span style={{ fontFamily: FONT_MONO, fontSize: 12, color: T.text2 }}>{j.dur}</span>
-            <span style={{ fontFamily: FONT_MONO, fontSize: 12, color: T.text1 }}>{j.cost}</span>
-            <span style={{ fontFamily: FONT_MONO, fontSize: 12, color: T.text2 }}>{j.tokens}</span>
-            <Badge kind={j.status === "complete" ? "primary" : "amber"} label={j.status}/>
-            <span style={{ fontFamily: FONT_MONO, fontSize: 11, color: T.text3 }}>{j.time}</span>
+            <span style={{ fontFamily: FONT_MONO, fontSize: 12, color: T.text2 }}>
+              {j.duration_s != null ? `${j.duration_s.toFixed(1)}s` : "—"}
+            </span>
+            <span style={{ fontFamily: FONT_MONO, fontSize: 12, color: T.text1 }}>
+              {j.cost_usdc != null ? j.cost_usdc.toFixed(4) : "—"}
+            </span>
+            <span style={{ fontFamily: FONT_MONO, fontSize: 12, color: T.text2 }}>{j.tokens ?? "—"}</span>
+            <Badge kind={j.status === "complete" ? "primary" : "red"} label={j.status}/>
+            <span style={{ fontFamily: FONT_MONO, fontSize: 11, color: T.text3 }}>{ago(j.ts)}</span>
           </div>
         ))}
       </Card>
+
+      {open && <JobDetail j={open} onClose={() => setOpen(null)}/>}
+    </div>
+  );
+}
+
+function JobDetail({ j, onClose }: { j: JobRecord; onClose: () => void }) {
+  const T = useT();
+  return (
+    <div onClick={onClose}
+      style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", zIndex: 90, display: "flex", alignItems: "center", justifyContent: "center", padding: 32 }}>
+      <div onClick={(e) => e.stopPropagation()}
+        style={{ width: 760, maxWidth: "100%", background: T.surface, borderRadius: 16, overflow: "hidden", maxHeight: "90vh", display: "flex", flexDirection: "column" }}>
+        <div style={{ padding: "20px 28px", borderBottom: `1px solid ${T.border}`, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <div>
+            <div style={{ fontFamily: FONT_DISPLAY, fontSize: 18, fontWeight: 600, color: T.text1 }}>
+              {j.model} · {j.pool}
+            </div>
+            <div style={{ fontFamily: FONT_MONO, fontSize: 12, color: T.text3, marginTop: 4 }}>
+              {j.request_id}
+            </div>
+          </div>
+          <button onClick={onClose} style={{ border: "none", background: "transparent", color: T.text3, fontSize: 22, cursor: "pointer" }}>×</button>
+        </div>
+        <div style={{ padding: 24, overflow: "auto", display: "flex", flexDirection: "column", gap: 18 }}>
+          <Section title="Prompt"><Pre>{j.prompt}</Pre></Section>
+          {j.output && <Section title="Output"><Pre>{j.output}</Pre></Section>}
+          {j.error && <Section title="Error"><Pre>{j.error}</Pre></Section>}
+          <Section title="Metadata">
+            <Row k="status"   v={j.status}/>
+            <Row k="duration" v={j.duration_s != null ? `${j.duration_s.toFixed(2)} s` : "—"}/>
+            <Row k="tokens"   v={String(j.tokens ?? "—")}/>
+            <Row k="cost"     v={j.cost_usdc != null ? `${j.cost_usdc.toFixed(6)} USDC` : "—"}/>
+            <Row k="payer"    v={j.payer ?? "—"}/>
+            <Row k="settle_tx" v={j.settle_tx
+              ? `${j.settle_tx.slice(0, 10)}…${j.settle_tx.slice(-8)}`
+              : "—"}
+              link={j.settle_tx ? EXPLORER + j.settle_tx : undefined}/>
+          </Section>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function Section({ title, children }: { title: string; children: React.ReactNode }) {
+  const T = useT();
+  return (
+    <div>
+      <div style={{ fontFamily: FONT_BODY, fontSize: 11, color: T.text3, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 8 }}>{title}</div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>{children}</div>
+    </div>
+  );
+}
+function Pre({ children }: { children: React.ReactNode }) {
+  const T = useT();
+  return (
+    <pre style={{
+      margin: 0, padding: 14, borderRadius: 8, background: T.surfaceWarm,
+      fontFamily: FONT_MONO, fontSize: 13, color: T.text1, lineHeight: 1.55,
+      whiteSpace: "pre-wrap", wordBreak: "break-word",
+    }}>{children}</pre>
+  );
+}
+function Row({ k, v, link }: { k: string; v: string; link?: string }) {
+  const T = useT();
+  return (
+    <div style={{ display: "flex", justifyContent: "space-between", padding: "4px 0" }}>
+      <span style={{ fontFamily: FONT_BODY, fontSize: 13, color: T.text2 }}>{k}</span>
+      {link ? (
+        <a href={link} target="_blank" rel="noreferrer" style={{ fontFamily: FONT_MONO, fontSize: 13, color: T.text1, textDecoration: "none" }}>
+          {v} <span style={{ color: T.text3 }}>↗</span>
+        </a>
+      ) : (
+        <span style={{ fontFamily: FONT_MONO, fontSize: 13, color: T.text1 }}>{v}</span>
+      )}
     </div>
   );
 }

@@ -1,50 +1,98 @@
 "use client";
 
 import * as React from "react";
-import { useT, FONT_DISPLAY, FONT_MONO } from "@/components/cp/theme";
-import { Badge, Card } from "@/components/cp/primitives";
+import { useT, FONT_DISPLAY, FONT_BODY, FONT_MONO } from "@/components/cp/theme";
+import { Badge, Button, Card } from "@/components/cp/primitives";
+import { useApiState } from "@/lib/use-api-state";
+import { nodes as nodesApi, type Node } from "@/lib/api";
+import { truncHex } from "@/components/cp/primitives";
+
+function statusKind(s: Node["status"]): "primary" | "amber" | "purple" | "offline" {
+  if (s === "loaded") return "primary";
+  if (s === "configured") return "purple";
+  if (s === "registered") return "amber";
+  return "offline";
+}
 
 export default function DashNodes() {
   const T = useT();
-  const nodes = React.useMemo(
-    () => ["a", "b", "c", "d", "e", "f", "g"].map((c, i) => ({
-      id: "node-" + c,
-      hex: `0x${c.repeat(3)}…${(1234 + i).toString(16)}`,
-      state: i === 4 ? "BREACHED" : i === 6 ? "OFFLINE" : "HEALTHY",
-      rep: (0.78 + Math.random() * 0.2).toFixed(2),
-      earned: (Math.random() * 4).toFixed(3),
-    })),
-    [],
-  );
+  const { data, authed, refresh } = useApiState({ pollMs: 5_000 });
+  const [busy, setBusy] = React.useState<string | null>(null);
+  const [err, setErr] = React.useState<string | null>(null);
+
+  if (!authed) {
+    return <Card padding={32}>Sign in at <a href="/connect" style={{ color: T.primary }}>/connect</a> first.</Card>;
+  }
+  const nodes = data?.nodes ?? [];
+
+  const remove = async (n: Node) => {
+    if (!confirm(`Forget ${n.node_id}? Worker will re-register on its next heartbeat.`)) return;
+    setBusy(n.node_id); setErr(null);
+    try { await nodesApi.delete(n.node_id); await refresh(); }
+    catch (e) { setErr((e as Error).message); }
+    finally { setBusy(null); }
+  };
+
   return (
     <div>
-      <h1 style={{ fontFamily: FONT_DISPLAY, fontWeight: 600, fontSize: 32, color: T.text1, letterSpacing: "-0.02em", margin: "0 0 24px" }}>Nodes</h1>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 16 }}>
-        {nodes.map((n) => (
-          <Card key={n.id} padding={20}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-              <div>
-                <div style={{ fontFamily: FONT_DISPLAY, fontSize: 18, fontWeight: 600, color: T.text1 }}>{n.id}</div>
-                <div style={{ fontFamily: FONT_MONO, fontSize: 12, color: T.text3, marginTop: 2 }}>{n.hex}</div>
-              </div>
-              <Badge
-                kind={n.state === "HEALTHY" ? "primary" : n.state === "BREACHED" ? "red" : "offline"}
-                label={n.state.toLowerCase()}
-              />
-            </div>
-            <div style={{ marginTop: 16, display: "flex", gap: 24 }}>
-              <div>
-                <div style={{ fontFamily: FONT_MONO, fontSize: 11, color: T.text3, textTransform: "uppercase", letterSpacing: "0.04em" }}>Reputation</div>
-                <div style={{ fontFamily: FONT_MONO, fontSize: 18, color: T.text1, fontWeight: 500, marginTop: 4 }}>{n.rep}</div>
-              </div>
-              <div>
-                <div style={{ fontFamily: FONT_MONO, fontSize: 11, color: T.text3, textTransform: "uppercase", letterSpacing: "0.04em" }}>Earned 7d</div>
-                <div style={{ fontFamily: FONT_MONO, fontSize: 18, color: T.text1, fontWeight: 500, marginTop: 4 }}>{n.earned}</div>
-              </div>
-            </div>
-          </Card>
-        ))}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 24 }}>
+        <h1 style={{ fontFamily: FONT_DISPLAY, fontWeight: 600, fontSize: 32, color: T.text1, letterSpacing: "-0.02em", margin: 0 }}>
+          Nodes
+        </h1>
+        <span style={{ fontFamily: FONT_MONO, fontSize: 12, color: T.text3 }}>{nodes.length} registered</span>
       </div>
+
+      {err && <Card padding={16} style={{ marginBottom: 16, background: T.redLight }}><span style={{ fontFamily: FONT_MONO, fontSize: 13, color: T.red }}>{err}</span></Card>}
+
+      {nodes.length === 0 ? (
+        <Card padding={32}>
+          <div style={{ fontFamily: FONT_BODY, fontSize: 14, color: T.text2, textAlign: "center" }}>
+            No nodes yet. Bring up a worker container with <code>OWNER_API_KEY</code> set to your account&apos;s key
+            and it&apos;ll appear here on its next heartbeat.
+          </div>
+        </Card>
+      ) : (
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 16 }}>
+          {nodes.map((n) => (
+            <Card key={n.node_id} padding={20}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                <div>
+                  <div style={{ fontFamily: FONT_DISPLAY, fontSize: 18, fontWeight: 600, color: T.text1 }}>{n.node_id}</div>
+                  <div style={{ fontFamily: FONT_MONO, fontSize: 12, color: T.text3, marginTop: 2 }}>
+                    pool: {n.pool_name ?? "—"}
+                  </div>
+                </div>
+                <Badge kind={statusKind(n.status)} label={n.status}/>
+              </div>
+
+              <div style={{ marginTop: 16, display: "grid", gridTemplateColumns: "1fr", gap: 8, fontFamily: FONT_MONO, fontSize: 12 }}>
+                <KV k="role"          v={n.role ?? "—"}/>
+                <KV k="layers"        v={n.layers ? `L${n.layers[0]}–${n.layers[1]}` : "—"}/>
+                <KV k="model"         v={n.model ?? "—"}/>
+                <KV k="axl_peer_id"   v={n.axl_peer_id ? truncHex(n.axl_peer_id, 8, 6) : "—"}/>
+                <KV k="ip_address"    v={n.ip_address ?? "—"}/>
+                <KV k="worker_url"    v={n.worker_url ?? "—"}/>
+                <KV k="last_seen"     v={n.last_seen ? new Date(n.last_seen).toLocaleTimeString() : "—"}/>
+              </div>
+              <div style={{ marginTop: 16, textAlign: "right" }}>
+                <Button kind="ghost" disabled={busy === n.node_id} onClick={() => remove(n)}>
+                  {busy === n.node_id ? "Removing…" : "Forget"}
+                </Button>
+              </div>
+            </Card>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function KV({ k, v }: { k: string; v: string }) {
+  const T = useT();
+  return (
+    <div style={{ display: "flex", justifyContent: "space-between" }}>
+      <span style={{ color: T.text3 }}>{k}</span>
+      <span style={{ color: T.text1, textAlign: "right", maxWidth: 280, overflow: "hidden", textOverflow: "ellipsis" }}>{v}</span>
     </div>
   );
 }
