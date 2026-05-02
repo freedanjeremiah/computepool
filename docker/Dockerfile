@@ -39,10 +39,12 @@ RUN chmod +x /usr/local/bin/node
 
 WORKDIR /app
 
-# Install torch from the CPU-only PyTorch index to avoid pulling 5GB of CUDA libs.
+# PyTorch CUDA 12.1 wheels: ship their own libcudart, libcublas, etc. so the
+# host only needs an NVIDIA driver (no CUDA toolkit install needed).
+# Image grows by ~2.5GB but worker can hit the GPU without an nvidia base.
 COPY worker/requirements.txt /app/worker/requirements.txt
 RUN pip install --no-cache-dir \
-        --extra-index-url https://download.pytorch.org/whl/cpu \
+        --extra-index-url https://download.pytorch.org/whl/cu121 \
         -r /app/worker/requirements.txt
 
 COPY orchestrator/requirements.txt /app/orchestrator/requirements.txt

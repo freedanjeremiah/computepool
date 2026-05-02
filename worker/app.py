@@ -54,7 +54,21 @@ def _select_dtype() -> torch.dtype:
     forced = os.environ.get("TORCH_DTYPE", "").lower()
     if forced == "float32":
         return torch.float32
+    if forced == "float16":
+        return torch.float16
     return torch.bfloat16
+
+
+def _select_device() -> str:
+    forced = os.environ.get("TORCH_DEVICE", "").lower()
+    if forced in {"cuda", "cpu", "mps"}:
+        if forced == "cuda" and not torch.cuda.is_available():
+            logger.warning("TORCH_DEVICE=cuda but torch.cuda.is_available() is False; falling back to cpu")
+            return "cpu"
+        return forced
+    if torch.cuda.is_available():
+        return "cuda"
+    return "cpu"
 
 
 def _detect_ip() -> str:
@@ -157,7 +171,19 @@ async def lifespan(app: FastAPI):
     s.registered: bool = False
     s.register_task: Optional[asyncio.Task] = None
     s.dtype = _select_dtype()
-    s.device = "cpu"
+    s.device = _select_device()
+    if s.device == "cuda":
+        try:
+            gpu_name = torch.cuda.get_device_name(0)
+            free, total = torch.cuda.mem_get_info(0)
+            logger.info(
+                "CUDA available: %s · %.1f / %.1f GiB free · dtype=%s",
+                gpu_name, free / 1024**3, total / 1024**3, s.dtype,
+            )
+        except Exception as e:
+            logger.warning("failed to query CUDA device info: %r", e)
+    else:
+        logger.info("running on %s · dtype=%s", s.device, s.dtype)
 
     try:
         await asyncio.to_thread(s.axl.wait_until_ready, 30.0)

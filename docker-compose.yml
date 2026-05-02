@@ -57,6 +57,9 @@ services:
       WORKER_PRIVATE_KEY: ${WORKER_A_PRIVATE_KEY:-}
       SEPOLIA_RPC_URL: ${SEPOLIA_RPC_URL:-https://evmrpc-testnet.0g.ai}
       GDA_V1_FORWARDER: ${GDA_V1_FORWARDER}
+      # GPU: leave TORCH_DEVICE unset to auto-detect; force "cpu" to disable.
+      TORCH_DEVICE: ${TORCH_DEVICE:-}
+      TORCH_DTYPE: ${TORCH_DTYPE:-}
     volumes:
       - node-a-data:/data
       - hf-cache:/root/.cache/huggingface
@@ -67,6 +70,13 @@ services:
     networks:
       - discom
     restart: unless-stopped
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1                # share the single GPU with node-b
+              capabilities: [gpu]
 
   node-b:
     image: dis-com:latest
@@ -85,6 +95,8 @@ services:
       WORKER_PRIVATE_KEY: ${WORKER_B_PRIVATE_KEY:-}
       SEPOLIA_RPC_URL: ${SEPOLIA_RPC_URL:-https://evmrpc-testnet.0g.ai}
       GDA_V1_FORWARDER: ${GDA_V1_FORWARDER}
+      TORCH_DEVICE: ${TORCH_DEVICE:-}
+      TORCH_DTYPE: ${TORCH_DTYPE:-}
     volumes:
       - node-b-data:/data
       - hf-cache:/root/.cache/huggingface
@@ -95,6 +107,13 @@ services:
     networks:
       - discom
     restart: unless-stopped
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
 
   facilitator:
     build:
