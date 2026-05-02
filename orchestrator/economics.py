@@ -490,8 +490,33 @@ class EconomicsService:
             flow_rate = raw_rate
 
         pp = await self.db.payment_pools.find_one({"pool_id": pool_id})
+        # Soft-fail: if the GDA payment pool was never provisioned (e.g. the
+        # coalition propose reverted on-chain during /pools/{n}/initialize),
+        # we skip the Superfluid stream and let x402 settle directly to the
+        # orchestrator wallet. Inference still works — the operators just
+        # don't earn a streaming payout for this run.
         if not pp:
-            raise RuntimeError(f"no payment pool for pool_id={pool_id}")
+            logger.warning(
+                "no payment pool for pool_id=%s; skipping GDA stream + recording payment as VERIFIED",
+                pool_id,
+            )
+            await self.db.payments.insert_one(
+                {
+                    "_id": inference_request_id,
+                    "pool_id": pool_id,
+                    "payer": payer,
+                    "amount_usdc_micro": amount_usdc_micro,
+                    "amount_usdcx_wei": str(amount_usdcx_wei),
+                    "flow_rate_wei_per_sec": str(flow_rate),
+                    "estimated_duration_s": estimated_duration_s,
+                    "inference_request_id": inference_request_id,
+                    "state": PaymentState.VERIFIED.value,
+                    "stream_skipped": True,
+                    "skip_reason": "no_payment_pool",
+                    "created_at": datetime.now(timezone.utc),
+                }
+            )
+            return
 
         await self.db.payments.insert_one(
             {
@@ -559,6 +584,14 @@ class EconomicsService:
         inference_request_id: str,
     ) -> None:
         pp = await self.db.payment_pools.find_one({"pool_id": pool_id})
+        if not pp:
+            # No GDA pool to wind down — payment was already recorded as
+            # x402-only by on_payment_received. Nothing to do on-chain.
+            logger.info(
+                "on_inference_complete: no payment pool for pool_id=%s; skipping stream_stop",
+                pool_id,
+            )
+            return
         # TODO(KH-issue): KH 0G writes hang. Submitting GDA distributeFlow
         # rate=0 directly. Restore kh.execute_workflow(...) once KH ships fix.
         #
