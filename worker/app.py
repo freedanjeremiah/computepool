@@ -10,10 +10,12 @@ from typing import Any, Dict, List, Optional
 
 import httpx
 import torch
+from eth_account import Account
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field
 
 from .axl_client import AXLClient
+from .coalition_sign import router as coalition_router
 from .model import SplitModel
 from .pipeline import (
     EntryDispatcher,
@@ -21,6 +23,7 @@ from .pipeline import (
     entry_recv_loop,
     exit_loop,
 )
+from .settings import get_settings as get_worker_settings
 
 
 logging.basicConfig(
@@ -92,6 +95,13 @@ async def _register_with_orchestrator(app: FastAPI) -> None:
                 await asyncio.sleep(5.0)
                 continue
 
+            try:
+                ws = get_worker_settings()
+                wallet_address = Account.from_key(ws.worker_private_key).address
+            except Exception as e:
+                logger.warning("worker settings/wallet not available: %r", e)
+                wallet_address = None
+
             payload = {
                 "node_id": state.node_id,
                 "axl_peer_id": peer,
@@ -99,6 +109,8 @@ async def _register_with_orchestrator(app: FastAPI) -> None:
                 "ip_address": state.ip_address,
                 "worker_url": state.worker_url,
             }
+            if wallet_address:
+                payload["wallet_address"] = wallet_address
             try:
                 r = await client.post(url, json=payload, headers=headers)
                 if 200 <= r.status_code < 300:
@@ -181,6 +193,7 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="dis-com worker", lifespan=lifespan)
+app.include_router(coalition_router)
 
 
 @app.get("/health")
