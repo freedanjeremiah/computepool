@@ -250,6 +250,7 @@ async def nodes_register(
         "axl_peer_id": body.axl_peer_id,
         "axl_ipv6": body.axl_ipv6,
         "worker_url": body.worker_url,
+        "wallet_address": body.wallet_address,
         "status": "registered",
         "fail_count": 0,
         "last_seen": None,

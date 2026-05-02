@@ -15,6 +15,7 @@ POOLNAME_RE = re.compile(r"^[a-z0-9_-]{3,64}$")
 NODEID_RE = re.compile(r"^[A-Za-z0-9_.-]{1,64}$")
 PEERID_RE = re.compile(r"^[0-9a-fA-F]{64}$")
 HOST_RE = re.compile(r"^[A-Za-z0-9._-]+$")
+WALLET_RE = re.compile(r"^0x[0-9a-fA-F]{40}$")
 
 ALLOW_PRIVATE_WORKER_URLS = os.environ.get("ALLOW_PRIVATE_WORKER_URLS", "1") == "1"
 
@@ -84,6 +85,7 @@ class NodeRegisterRequest(BaseModel):
     axl_ipv6: str
     ip_address: str
     worker_url: str
+    wallet_address: Optional[str] = None
 
     @field_validator("node_id")
     @classmethod
@@ -103,6 +105,15 @@ class NodeRegisterRequest(BaseModel):
     @classmethod
     def _v_worker_url(cls, v: str) -> str:
         return _validate_worker_url(v)
+
+    @field_validator("wallet_address")
+    @classmethod
+    def _v_wallet(cls, v: Optional[str]) -> Optional[str]:
+        if v is None:
+            return v
+        if not WALLET_RE.match(v):
+            raise ValueError("wallet_address must be 0x + 40 hex chars")
+        return v
 
 
 class NodeRegisterResponse(BaseModel):
