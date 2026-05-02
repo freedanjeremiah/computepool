@@ -4,7 +4,8 @@ import * as React from "react";
 import Link from "next/link";
 import { useT, FONT_BODY, FONT_MONO } from "./theme";
 import { Logo } from "./logo";
-import { Badge } from "./primitives";
+import { Badge, Button } from "./primitives";
+import { useWallet } from "@/lib/use-wallet";
 
 type Item = { id: string; label: string; icon: string; path: string };
 
@@ -47,13 +48,38 @@ export function Sidebar({ active }: { active: string }) {
         })}
       </nav>
       <div style={{ flex: 1 }}/>
-      <div style={{ padding: "16px 20px", borderTop: `1px solid ${T.border}` }}>
-        <Badge kind="primary" label="0G Galileo · live" style={{ marginBottom: 10 }}/>
-        <div style={{ fontFamily: FONT_MONO, fontSize: 12, color: T.text2 }}>0x7a4f…c19e</div>
-        <Link href="/connect" style={{ textDecoration: "none" }}>
-          <div style={{ marginTop: 8, fontFamily: FONT_BODY, fontSize: 12, color: T.text3, cursor: "pointer" }}>Disconnect</div>
-        </Link>
-      </div>
+      <SidebarWalletFooter/>
     </aside>
+  );
+}
+
+function SidebarWalletFooter() {
+  const T = useT();
+  const { state: w, connect, disconnect, busy } = useWallet();
+  const short = w.address ? `${w.address.slice(0, 6)}…${w.address.slice(-4)}` : null;
+  const chainKind: "primary" | "amber" = w.address && !w.rightChain ? "amber" : "primary";
+  const chainLabel = w.address && !w.rightChain ? `chain ${w.chainId ?? "?"}` : "0G Galileo · live";
+  return (
+    <div style={{ padding: "16px 20px", borderTop: `1px solid ${T.border}` }}>
+      <Badge kind={chainKind} label={chainLabel} style={{ marginBottom: 10 }}/>
+      {short ? (
+        <>
+          <div style={{ fontFamily: FONT_MONO, fontSize: 12, color: T.text2 }}>{short}</div>
+          <div onClick={disconnect}
+            style={{ marginTop: 8, fontFamily: FONT_BODY, fontSize: 12, color: T.text3, cursor: "pointer" }}>
+            Disconnect
+          </div>
+        </>
+      ) : w.available ? (
+        <Button kind="secondary" full disabled={busy} onClick={connect}
+          style={{ padding: "8px 12px", fontSize: 13 }}>
+          {busy ? "Connecting…" : "Connect wallet"}
+        </Button>
+      ) : (
+        <Link href="/connect" style={{ textDecoration: "none" }}>
+          <div style={{ fontFamily: FONT_BODY, fontSize: 12, color: T.text2 }}>No wallet detected</div>
+        </Link>
+      )}
+    </div>
   );
 }

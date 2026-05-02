@@ -6,8 +6,9 @@ import { useT, FONT_DISPLAY, FONT_BODY, FONT_MONO } from "@/components/cp/theme"
 import { Badge, Button, Card, RowKV } from "@/components/cp/primitives";
 import { useInferState } from "@/lib/use-infer-state";
 import { fetchPaymentRequirements } from "@/lib/infer-stream";
-import { signX402 } from "@/lib/sign-payment";
+import { signX402, signX402WithWallet } from "@/lib/sign-payment";
 import { loadAuth, loadDemoPayerKey, loadChainId } from "@/lib/auth-store";
+import { useWallet } from "@/lib/use-wallet";
 
 export default function InferStep3() {
   const T = useT();
@@ -25,9 +26,18 @@ export default function InferStep3() {
   const live = state.mode === "live";
   const auth = typeof window === "undefined" ? null : loadAuth();
   const demoKey = typeof window === "undefined" ? null : loadDemoPayerKey();
-  const liveReady = live && !!auth && !!demoKey;
-  const liveBlocker = !auth ? "Sign in at /connect first." :
-                      !demoKey ? "Add a demo payer private key on /connect." : null;
+  const { state: wallet, connect: connectWallet, switchChain, busy: walletBusy } = useWallet();
+  const useWalletSigning = !!wallet.address;
+  const useDemoKeySigning = !useWalletSigning && !!demoKey;
+  const liveReady = live && !!auth && (useWalletSigning || useDemoKeySigning);
+
+  const liveBlocker = !auth
+    ? "Sign in at /connect first."
+    : !useWalletSigning && !useDemoKeySigning
+    ? "Connect a wallet on /connect (or add a demo payer key)."
+    : useWalletSigning && !wallet.rightChain
+    ? `Wallet is on chain ${wallet.chainId ?? "?"}; switch to ${wallet.expectedChainId} (0G Galileo).`
+    : null;
 
   const confirm = async () => {
     setErr(null);
@@ -35,23 +45,22 @@ export default function InferStep3() {
       router.push("/infer/active");
       return;
     }
-    if (!auth || !demoKey) {
-      setErr(liveBlocker ?? "Live prerequisites missing.");
-      return;
-    }
+    if (!auth) { setErr("Sign in at /connect first."); return; }
     setBusy(true);
     try {
+      if (useWalletSigning && !wallet.rightChain) {
+        await switchChain();
+      }
       const requirements = await fetchPaymentRequirements({
         poolName: state.poolName,
         prompt: state.prompt,
         maxTokens: state.maxTokens,
         apiKey: auth.apiKey,
       });
-      const { header, payer } = await signX402({
-        privateKey: demoKey,
-        requirements,
-        chainId: loadChainId(),
-      });
+      const chainId = loadChainId();
+      const { header, payer } = useWalletSigning
+        ? await signX402WithWallet({ account: wallet.address!, requirements, chainId })
+        : await signX402({ privateKey: demoKey!, requirements, chainId });
       setState({ ...state, xPayment: header, payer, requirements });
       router.push("/infer/active");
     } catch (e) {
@@ -114,9 +123,30 @@ export default function InferStep3() {
           ))}
         </div>
 
+        {live && (
+          <div style={{
+            marginTop: 16, padding: "12px 14px", borderRadius: 8,
+            background: T.surfaceWarm, fontFamily: FONT_BODY, fontSize: 13, color: T.text2,
+            display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12,
+          }}>
+            <span>
+              Signer: {useWalletSigning
+                ? <strong style={{ color: T.text1, fontFamily: FONT_MONO }}>{wallet.address!.slice(0, 8)}…{wallet.address!.slice(-6)} (wallet)</strong>
+                : useDemoKeySigning
+                  ? <strong style={{ color: T.text1 }}>demo payer key</strong>
+                  : <strong style={{ color: T.amber }}>none</strong>}
+            </span>
+            {!useWalletSigning && wallet.available && (
+              <Button kind="secondary" disabled={walletBusy} onClick={connectWallet}>
+                {walletBusy ? "Connecting…" : "Use wallet instead →"}
+              </Button>
+            )}
+          </div>
+        )}
+
         {live && liveBlocker && (
           <div style={{
-            marginTop: 16, padding: "10px 14px", borderRadius: 8,
+            marginTop: 12, padding: "10px 14px", borderRadius: 8,
             background: T.amberLight, fontFamily: FONT_BODY, fontSize: 13, color: T.amber,
           }}>
             {liveBlocker}

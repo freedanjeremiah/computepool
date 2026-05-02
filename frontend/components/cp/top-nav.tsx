@@ -5,14 +5,23 @@ import Link from "next/link";
 import { useT, FONT_BODY, FONT_MONO } from "./theme";
 import { Logo } from "./logo";
 import { Badge, Button } from "./primitives";
+import { useWallet } from "@/lib/use-wallet";
 
 export function TopNav({ active }: { active: "landing" | "dashboard" | "infer" }) {
   const T = useT();
+  const { state: w, connect, busy } = useWallet();
   const items = [
     { id: "landing",   label: "Home",          path: "/" },
     { id: "dashboard", label: "Dashboard",     path: "/dashboard" },
     { id: "infer",     label: "Run inference", path: "/infer" },
   ] as const;
+
+  const short = w.address ? `${w.address.slice(0, 6)}…${w.address.slice(-4)}` : null;
+  const chainLabel = w.address
+    ? (w.rightChain ? "0G Galileo · live" : `wrong chain (${w.chainId ?? "?"})`)
+    : "0G Galileo · live";
+  const chainKind: "primary" | "amber" = w.address && !w.rightChain ? "amber" : "primary";
+
   return (
     <nav style={{
       position: "sticky", top: 0, zIndex: 50,
@@ -36,10 +45,22 @@ export function TopNav({ active }: { active: "landing" | "dashboard" | "infer" }
         ))}
       </div>
       <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-        <Badge kind="primary" label="0G Galileo · live"/>
-        <Link href="/connect" style={{ textDecoration: "none" }}>
-          <Button kind="secondary" style={{ whiteSpace: "nowrap" }}>0x7a4f…c19e</Button>
-        </Link>
+        <Badge kind={chainKind} label={chainLabel}/>
+        {short ? (
+          <Link href="/connect" style={{ textDecoration: "none" }}>
+            <Button kind="secondary" style={{ whiteSpace: "nowrap", fontFamily: FONT_MONO }}>
+              {short}
+            </Button>
+          </Link>
+        ) : w.available ? (
+          <Button kind="secondary" disabled={busy} onClick={connect} style={{ whiteSpace: "nowrap" }}>
+            {busy ? "Connecting…" : "Connect wallet"}
+          </Button>
+        ) : (
+          <Link href="/connect" style={{ textDecoration: "none" }}>
+            <Button kind="secondary" style={{ whiteSpace: "nowrap" }}>Sign in</Button>
+          </Link>
+        )}
       </div>
     </nav>
   );

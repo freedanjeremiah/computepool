@@ -6,6 +6,8 @@
 // is what the orchestrator's parse_payment_header expects.
 
 import { privateKeyToAccount } from "viem/accounts";
+import { getWalletClient } from "./wallet";
+import type { Address } from "viem";
 
 export type PaymentRequirements = {
   scheme: string;
@@ -100,6 +102,61 @@ export async function signX402(args: {
     : Buffer.from(JSON.stringify(payload)).toString("base64");
 
   return { header, payer: account.address, nonce };
+}
+
+/**
+ * Sign x402 PaymentRequirements via an injected EIP-1193 wallet
+ * (MetaMask, etc). Uses viem's WalletClient.signTypedData under the hood.
+ */
+export async function signX402WithWallet(args: {
+  account: string; // 0x...
+  requirements: PaymentRequirements;
+  chainId: number;
+  ttlSeconds?: number;
+}): Promise<{ header: string; payer: string; nonce: string }> {
+  const account = args.account as Address;
+  const validBefore = String(Math.floor(Date.now() / 1000) + (args.ttlSeconds ?? 600));
+  const nonce = randomNonce();
+  const auth: Authorization = {
+    from: account,
+    to: args.requirements.payTo,
+    value: args.requirements.maxAmountRequired,
+    validAfter: "0",
+    validBefore,
+    nonce,
+  };
+
+  const client = getWalletClient();
+  const signature = await client.signTypedData({
+    account,
+    domain: {
+      name: args.requirements.extra?.name ?? "USDC",
+      version: args.requirements.extra?.version ?? "2",
+      chainId: args.chainId,
+      verifyingContract: args.requirements.asset as Address,
+    },
+    types: TYPES,
+    primaryType: "TransferWithAuthorization",
+    message: {
+      from: auth.from as Address,
+      to: auth.to as Address,
+      value: BigInt(auth.value),
+      validAfter: BigInt(auth.validAfter),
+      validBefore: BigInt(auth.validBefore),
+      nonce: auth.nonce,
+    },
+  });
+
+  const payload = {
+    x402Version: 1,
+    scheme: args.requirements.scheme || "exact",
+    network: args.requirements.network,
+    payload: { signature, authorization: auth },
+  };
+  const header = typeof btoa !== "undefined"
+    ? btoa(JSON.stringify(payload))
+    : Buffer.from(JSON.stringify(payload)).toString("base64");
+  return { header, payer: account, nonce };
 }
 
 /** Decode an X-PAYMENT-RESPONSE header (base64 JSON). */

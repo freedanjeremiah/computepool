@@ -12,12 +12,14 @@ import {
   saveChainId, loadChainId,
 } from "@/lib/auth-store";
 import { privateKeyToAccount } from "viem/accounts";
+import { useWallet } from "@/lib/use-wallet";
 
 type Tab = "signin" | "register";
 
 export default function ConnectPage() {
   const T = useT();
   const router = useRouter();
+  const { state: wallet, connect: connectWallet, disconnect: disconnectWallet, switchChain, busy: walletBusy, error: walletErr } = useWallet();
   const [tab, setTab] = React.useState<Tab>("signin");
   const [username, setUsername] = React.useState("");
   const [password, setPassword] = React.useState("");
@@ -113,10 +115,66 @@ export default function ConnectPage() {
             Connect
           </h1>
           <p style={{ fontFamily: FONT_BODY, fontSize: 15, color: T.text2, margin: 0, lineHeight: 1.5 }}>
-            Step 1 — sign in for orchestrator API access. Step 2 — paste a demo payer key so the
-            browser can sign x402 transferWithAuthorization for live inference.
+            Step 1 — sign in for orchestrator API access. Step 2 — connect MetaMask
+            (or any EIP-1193 wallet) to authorize x402 payments. A throwaway demo key is
+            available as a fallback.
           </p>
         </div>
+
+        {/* — Wallet connect (primary) — */}
+        <Card padding={24} style={{ marginBottom: 16 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+            <span style={{ fontFamily: FONT_DISPLAY, fontSize: 16, fontWeight: 600, color: T.text1 }}>
+              Wallet
+            </span>
+            {wallet.address && wallet.rightChain && <Badge kind="primary" label="connected"/>}
+            {wallet.address && !wallet.rightChain && <Badge kind="amber" label={`wrong chain (${wallet.chainId ?? "?"})`}/>}
+            {!wallet.address && wallet.available && <Badge kind="amber" label="not connected"/>}
+            {!wallet.available && <Badge kind="offline" label="no injected wallet"/>}
+          </div>
+
+          {!wallet.available ? (
+            <div style={{ fontFamily: FONT_BODY, fontSize: 13, color: T.text2, lineHeight: 1.5 }}>
+              No injected EIP-1193 provider detected. Install
+              {" "}<a href="https://metamask.io/download/" target="_blank" rel="noreferrer" style={{ color: T.primary }}>MetaMask</a>{" "}
+              or another browser wallet, then refresh this page. You can still use the demo payer
+              key below for local testing.
+            </div>
+          ) : !wallet.address ? (
+            <>
+              <div style={{ fontFamily: FONT_BODY, fontSize: 13, color: T.text2, lineHeight: 1.5, marginBottom: 14 }}>
+                Connect MetaMask (or any EOA wallet) and we&apos;ll use it to sign EIP-3009
+                <code style={{ margin: "0 4px" }}>transferWithAuthorization</code> for live inference. No
+                approvals on chain — just an EIP-712 signature in your wallet.
+              </div>
+              <Button kind="primary" full disabled={walletBusy} onClick={connectWallet}>
+                {walletBusy ? "Connecting…" : "Connect wallet →"}
+              </Button>
+              {walletErr && <ErrLine v={walletErr}/>}
+            </>
+          ) : (
+            <>
+              <div style={{ fontFamily: FONT_BODY, fontSize: 12, color: T.text2 }}>Address</div>
+              <div style={{
+                marginTop: 6, padding: "10px 14px", borderRadius: 8, background: T.surfaceWarm,
+                fontFamily: FONT_MONO, fontSize: 13, color: T.text1, wordBreak: "break-all",
+              }}>{wallet.address}</div>
+              <div style={{ marginTop: 12, fontFamily: FONT_MONO, fontSize: 12, color: T.text2 }}>
+                Chain {wallet.chainId ?? "?"} {wallet.rightChain ? "✓" : `(expected ${wallet.expectedChainId})`}
+              </div>
+              {!wallet.rightChain && (
+                <Button kind="secondary" full disabled={walletBusy} onClick={switchChain} style={{ marginTop: 12 }}>
+                  {walletBusy ? "Switching…" : `Switch to chain ${wallet.expectedChainId}`}
+                </Button>
+              )}
+              <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
+                <Button kind="ghost" onClick={disconnectWallet}>Disconnect</Button>
+                <Button kind="ghost" onClick={() => router.push("/infer")}>Run inference →</Button>
+              </div>
+              {walletErr && <ErrLine v={walletErr}/>}
+            </>
+          )}
+        </Card>
 
         {/* — Step 1: orchestrator account — */}
         {me ? (
@@ -165,18 +223,18 @@ export default function ConnectPage() {
           </Card>
         )}
 
-        {/* — Step 2: demo payer wallet — */}
+        {/* — Demo payer wallet (fallback) — */}
         <Card padding={24}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
             <span style={{ fontFamily: FONT_DISPLAY, fontSize: 16, fontWeight: 600, color: T.text1 }}>
-              Demo payer wallet
+              Demo payer key (fallback)
             </span>
             {demoSaved && <Badge kind="primary" label="loaded"/>}
           </div>
           <div style={{ fontFamily: FONT_BODY, fontSize: 13, color: T.text2, lineHeight: 1.5, marginBottom: 12 }}>
-            The x402 EIP-3009 signer needs a private key to sign <code>transferWithAuthorization</code>.
-            For the demo we keep this in <code>localStorage</code>. Use a throwaway testnet key — never paste a key
-            with mainnet funds.
+            Only needed when no injected wallet is available (CI, headless demos, etc). The browser
+            wallet above is preferred. Stored in <code>localStorage</code>; use a throwaway testnet
+            key only — never one with mainnet funds.
           </div>
 
           {demoSaved ? (
