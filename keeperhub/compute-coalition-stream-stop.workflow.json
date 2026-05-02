@@ -1,0 +1,65 @@
+{
+  "name": "compute-coalition-stream-stop",
+  "description": "Stop a Superfluid GDA distribution flow into a coalition pool (rate=0) and call back to the orchestrator.",
+  "enabled": true,
+  "nodes": [
+    {
+      "id": "trigger",
+      "type": "trigger",
+      "position": {"x": 100, "y": 200},
+      "data": {
+        "type": "trigger",
+        "label": "Trigger",
+        "config": {
+          "triggerType": "Manual",
+          "inputs": {
+            "session_id": {"type": "string"},
+            "super_token": {"type": "string"},
+            "pool_address": {"type": "string"},
+            "sender": {"type": "string"},
+            "callback_url": {"type": "string"}
+          }
+        }
+      }
+    },
+    {
+      "id": "stop-flow",
+      "type": "action",
+      "position": {"x": 400, "y": 200},
+      "data": {
+        "type": "action",
+        "label": "GDA distributeFlow rate=0",
+        "config": {
+          "actionType": "web3/write-contract",
+          "integrationId": "REPLACE_WITH_YOUR_WALLET_INTEGRATION_ID",
+          "network": "11155111",
+          "contractAddress": "0x6DA13Bde224A05a288748d857b9e7DDEffd1dE08",
+          "abiFunction": "distributeFlow",
+          "abi": "[{\"name\":\"distributeFlow\",\"type\":\"function\",\"stateMutability\":\"nonpayable\",\"inputs\":[{\"name\":\"token\",\"type\":\"address\"},{\"name\":\"from\",\"type\":\"address\"},{\"name\":\"pool\",\"type\":\"address\"},{\"name\":\"requestedFlowRate\",\"type\":\"int96\"},{\"name\":\"userData\",\"type\":\"bytes\"}],\"outputs\":[{\"type\":\"bool\"}]}]",
+          "functionArgs": "[\"{{@trigger:Trigger.body.super_token}}\",\"{{@trigger:Trigger.body.sender}}\",\"{{@trigger:Trigger.body.pool_address}}\",\"0\",\"0x\"]",
+          "gasLimitMultiplier": "1.2"
+        }
+      }
+    },
+    {
+      "id": "callback",
+      "type": "action",
+      "position": {"x": 700, "y": 200},
+      "data": {
+        "type": "action",
+        "label": "POST stream_stopped",
+        "config": {
+          "actionType": "HTTP Request",
+          "httpMethod": "POST",
+          "endpoint": "{{@trigger:Trigger.body.callback_url}}",
+          "httpHeaders": "{\"Content-Type\":\"application/json\"}",
+          "httpBody": "{\"event\":\"stream_stopped\",\"session_id\":\"{{@trigger:Trigger.body.session_id}}\",\"tx_hash\":\"{{@stop-flow:GDA distributeFlow rate=0.transactionHash}}\"}"
+        }
+      }
+    }
+  ],
+  "edges": [
+    {"id": "e1", "source": "trigger", "target": "stop-flow"},
+    {"id": "e2", "source": "stop-flow", "target": "callback"}
+  ]
+}

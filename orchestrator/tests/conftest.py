@@ -13,6 +13,7 @@ def _orchestrator_env(monkeypatch):
         "KEEPERHUB_BASE_URL": "https://api.keeperhub.com",
         "KEEPERHUB_WEBHOOK_SECRET": "whsec_test",
         "KH_WORKFLOW_COALITION_FORM": "wf_form",
+        "KH_WORKFLOW_ACTIVATE_AND_POOL": "wf_activate",
         "KH_WORKFLOW_STREAM_START": "wf_start",
         "KH_WORKFLOW_STREAM_STOP": "wf_stop",
         "KH_WORKFLOW_HANDLE_BREACH": "wf_breach",

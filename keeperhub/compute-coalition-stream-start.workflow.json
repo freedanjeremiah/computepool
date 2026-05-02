@@ -1,0 +1,66 @@
+{
+  "name": "compute-coalition-stream-start",
+  "description": "Open a Superfluid GDA distributeFlow into a coalition pool at the requested rate, then call back to the orchestrator.",
+  "enabled": true,
+  "nodes": [
+    {
+      "id": "trigger",
+      "type": "trigger",
+      "position": {"x": 100, "y": 200},
+      "data": {
+        "type": "trigger",
+        "label": "Trigger",
+        "config": {
+          "triggerType": "Manual",
+          "inputs": {
+            "session_id": {"type": "string"},
+            "super_token": {"type": "string"},
+            "pool_address": {"type": "string"},
+            "sender": {"type": "string"},
+            "flow_rate_wei_per_sec": {"type": "string"},
+            "callback_url": {"type": "string"}
+          }
+        }
+      }
+    },
+    {
+      "id": "open-flow",
+      "type": "action",
+      "position": {"x": 400, "y": 200},
+      "data": {
+        "type": "action",
+        "label": "GDA distributeFlow",
+        "config": {
+          "actionType": "web3/write-contract",
+          "integrationId": "REPLACE_WITH_YOUR_WALLET_INTEGRATION_ID",
+          "network": "11155111",
+          "contractAddress": "0x6DA13Bde224A05a288748d857b9e7DDEffd1dE08",
+          "abiFunction": "distributeFlow",
+          "abi": "[{\"name\":\"distributeFlow\",\"type\":\"function\",\"stateMutability\":\"nonpayable\",\"inputs\":[{\"name\":\"token\",\"type\":\"address\"},{\"name\":\"from\",\"type\":\"address\"},{\"name\":\"pool\",\"type\":\"address\"},{\"name\":\"requestedFlowRate\",\"type\":\"int96\"},{\"name\":\"userData\",\"type\":\"bytes\"}],\"outputs\":[{\"type\":\"bool\"}]}]",
+          "functionArgs": "[\"{{@trigger:Trigger.body.super_token}}\",\"{{@trigger:Trigger.body.sender}}\",\"{{@trigger:Trigger.body.pool_address}}\",\"{{@trigger:Trigger.body.flow_rate_wei_per_sec}}\",\"0x\"]",
+          "gasLimitMultiplier": "1.2"
+        }
+      }
+    },
+    {
+      "id": "callback",
+      "type": "action",
+      "position": {"x": 700, "y": 200},
+      "data": {
+        "type": "action",
+        "label": "POST stream_started",
+        "config": {
+          "actionType": "HTTP Request",
+          "httpMethod": "POST",
+          "endpoint": "{{@trigger:Trigger.body.callback_url}}",
+          "httpHeaders": "{\"Content-Type\":\"application/json\"}",
+          "httpBody": "{\"event\":\"stream_started\",\"session_id\":\"{{@trigger:Trigger.body.session_id}}\",\"tx_hash\":\"{{@open-flow:GDA distributeFlow.transactionHash}}\",\"flow_rate\":\"{{@trigger:Trigger.body.flow_rate_wei_per_sec}}\"}"
+        }
+      }
+    }
+  ],
+  "edges": [
+    {"id": "e1", "source": "trigger", "target": "open-flow"},
+    {"id": "e2", "source": "open-flow", "target": "callback"}
+  ]
+}

@@ -156,8 +156,63 @@ class EconomicsService:
             sig_txs[addr] = tx
 
         await self.db.coalitions.update_one(
-            {"_id": coalition_id}, {"$set": {"sign_txs": sig_txs}}
+            {"_id": coalition_id}, {"$set": {"sign_txs": sig_txs}},
         )
+
+        # All worker sign txs have landed (each `_send_tx` waits for receipt and
+        # asserts status==1). Trigger the activate-and-pool workflow now.
+        if len(sig_txs) != len(participants):
+            logger.error(
+                "skipping activate; only %d of %d workers signed",
+                len(sig_txs), len(participants),
+            )
+            return
+
+        pool = await self.db.pools.find_one({"_id": coalition["pool_id"]})
+        units_by_addr = self._units_by_participant(pool, participants)
+        units_a = str(units_by_addr.get(participants[0], 1))
+        units_b = str(units_by_addr.get(participants[1], 1)) if len(participants) > 1 else "0"
+        participant_b = participants[1] if len(participants) > 1 else participants[0]
+
+        await self.kh.execute_workflow(
+            self.settings.kh_workflow_activate_and_pool,
+            inputs={
+                "session_id": coalition_id,
+                "coalition_address": self.settings.coalition_address,
+                "onchain_id": str(onchain_id),
+                "super_token": self.settings.usdcx_address,
+                "pool_admin": self.settings.orchestrator_wallet_address,
+                "participant_a": participants[0],
+                "units_a": units_a,
+                "participant_b": participant_b,
+                "units_b": units_b,
+                "callback_url": self.settings.public_url.rstrip("/")
+                + "/webhooks/keeperhub",
+            },
+        )
+        logger.info("activate-and-pool workflow started session_id=%s", coalition_id)
+
+    @staticmethod
+    def _units_by_participant(pool: dict | None, participants: list[str]) -> dict[str, int]:
+        """Derive GDA pool units per participant from the pool's layer assignments.
+
+        units = number of layers the worker handles. Falls back to 1 unit each
+        if the pool doc doesn't have explicit assignments.
+        """
+        if not pool or not pool.get("assignments"):
+            return {addr: 1 for addr in participants}
+        out: dict[str, int] = {}
+        for assignment in pool["assignments"]:
+            layers = assignment.get("layers")
+            if not layers or len(layers) != 2:
+                continue
+            count = max(1, layers[1] - layers[0] + 1)
+            wallet = assignment.get("wallet_address")
+            if wallet:
+                out[wallet] = count
+        for addr in participants:
+            out.setdefault(addr, 1)
+        return out
 
     async def on_coalition_activated(self, payload: dict) -> None:
         coalition_id = payload["session_id"]
