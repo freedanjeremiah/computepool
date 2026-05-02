@@ -16,3 +16,6 @@ PRD-*.md
 .env.local
 *.env
 !.env.example
+contracts/out/
+contracts/cache/
+contracts/broadcast/
