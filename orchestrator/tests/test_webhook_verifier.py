@@ -20,3 +20,16 @@ def test_verify_webhook_rejects_tampered_body():
 
 def test_verify_webhook_rejects_garbage():
     assert not verify_webhook("whsec", b"x", "not-hex")
+
+
+def test_verify_webhook_accepts_bearer_token():
+    secret = "whsec_abc"
+    assert verify_webhook(secret, b'{"event":"x"}', f"Bearer {secret}")
+
+
+def test_verify_webhook_rejects_wrong_bearer_token():
+    assert not verify_webhook("whsec_abc", b'{"event":"x"}', "Bearer whsec_other")
+
+
+def test_verify_webhook_rejects_empty_header():
+    assert not verify_webhook("whsec_abc", b'{"event":"x"}', "")

@@ -13,11 +13,13 @@ def build_router(economics) -> APIRouter:
     @router.post("/webhooks/keeperhub")
     async def kh_webhook(
         request: Request,
-        x_keeperhub_signature: str = Header(...),
+        authorization: str | None = Header(default=None),
+        x_keeperhub_signature: str | None = Header(default=None),
     ):
         body = await request.body()
+        sig_or_token = authorization or x_keeperhub_signature or ""
         if not verify_webhook(
-            settings.keeperhub_webhook_secret, body, x_keeperhub_signature
+            settings.keeperhub_webhook_secret, body, sig_or_token
         ):
             raise HTTPException(401, "invalid signature")
         payload = json.loads(body)
