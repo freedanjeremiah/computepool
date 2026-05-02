@@ -124,3 +124,24 @@ All endpoints except `/`, `/health`, `/api/models`, `/auth/*` require `X-API-Key
 - Worker callbacks (`/configure`, `/load`, `/unload`, `/generate`) are unauthenticated. Don't expose worker ports to the public internet.
 - CPU-only by default. The image works on GPU hosts but the bundled `torch==2.5.1` wheel is the CPU build; swap it in `worker/requirements.txt` for the right CUDA wheel if you need accelerated inference.
 - AXL transport is TLS-protected (ed25519 keys auto-generated per worker), but there is no peer allowlist — anyone who can reach `:7001` and present a valid TLS handshake can become a peer.
+
+## ComputePool × KeeperHub × Superfluid × x402
+
+This branch wires the existing sharded inference flow to the KeeperHub coalition + Superfluid plugins and gates `/pools/{n}/infer` behind a self-hosted x402 paywall. End-to-end demo lives in `scripts/e2e_demo.py`.
+
+Prereqs:
+- `Coalition.sol` deployed to Ethereum Sepolia (chainId 11155111) and the address recorded in `.env` as `COALITION_ADDRESS`.
+- KeeperHub workflows authored in their UI (see `keeperhub/README.md` for shape).
+- ngrok or similar public URL pointing at the orchestrator for KH webhooks.
+- Sepolia ETH on the orchestrator wallet, both worker wallets, and the facilitator relayer.
+- Sepolia USDC on the demo payer wallet (≥ 10 USDC). Sepolia USDCx float on the orchestrator wallet (≥ 5 USDC wrapped).
+
+Run:
+```sh
+cp .env.example .env  # fill values
+make build && make up
+docker compose up -d facilitator
+DEMO_PAYER_KEY=0x... python scripts/e2e_demo.py
+```
+
+Architecture and design rationale: see `docs/superpowers/specs/2026-05-02-discom-keeperhub-x402-integration-design.md`.
