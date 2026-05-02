@@ -1,89 +1,42 @@
-@import "tailwindcss";
+/* ComputePool — port of design's prototype CSS. Theme is driven by JS at runtime. */
 
-:root {
-  --bg: #0a0a0b;
-  --bg-panel: #111113;
-  --bg-elev: #16161a;
-  --border: #1f1f24;
-  --border-soft: #2a2a31;
-  --text: #e8e8e6;
-  --text-muted: #9ea3ad;
-  --text-faint: #5b606a;
-  --green: #00ff9c;
-  --yellow: #ffb300;
-  --purple: #b39dff;
-  --blue: #5ec8ff;
-  --red: #ff4f6e;
-  --grid: rgba(255, 255, 255, 0.03);
-}
-
-@theme inline {
-  --font-sans: var(--font-sans);
-  --font-mono: var(--font-mono);
-  --font-serif: var(--font-serif);
-}
-
-* {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
-}
-
-html,
+*, *::before, *::after { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
 body {
-  background: var(--bg);
-  color: var(--text);
-  font-family: var(--font-sans), ui-sans-serif, system-ui, -apple-system,
-    "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-  font-size: 15px;
-  line-height: 1.6;
-  overflow-x: hidden;
-  background-image: linear-gradient(var(--grid) 1px, transparent 1px),
-    linear-gradient(90deg, var(--grid) 1px, transparent 1px);
-  background-size: 40px 40px;
+  font-family: var(--font-body), 'Instrument Sans', system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  background: #FAFAF7; /* overridden by ThemeProvider */
+}
+a { text-decoration: none; }
+button { font-family: inherit; }
+::selection { background: rgba(67, 56, 202, 0.2); }
+
+@keyframes cp-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.45; }
+}
+@keyframes cp-flow-dash {
+  to { stroke-dashoffset: -60; }
+}
+.cp-flow {
+  animation: cp-flow-dash 2s linear infinite;
 }
 
-::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+input[type="range"] {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 4px;
+  background: #E8E5DF;
+  border-radius: 2px;
+  outline: none;
 }
-::-webkit-scrollbar-thumb {
-  background: var(--border-soft);
-  border-radius: 3px;
-}
-::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-body {
-  min-height: 100%;
-}
-
-@keyframes pulse {
-  0% {
-    box-shadow: 0 0 0 0 rgba(0, 255, 156, 0.7);
-  }
-  70% {
-    box-shadow: 0 0 0 8px rgba(0, 255, 156, 0);
-  }
-  100% {
-    box-shadow: 0 0 0 0 rgba(0, 255, 156, 0);
-  }
-}
-
-@keyframes meshDash {
-  to {
-    stroke-dashoffset: -10;
-  }
-}
-
-@keyframes auctionFadeIn {
-  from {
-    opacity: 0;
-    transform: translateX(-4px);
-  }
-  to {
-    opacity: 1;
-    transform: translateX(0);
-  }
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 18px; height: 18px;
+  border-radius: 9px;
+  background: var(--cp-primary, #4338CA);
+  cursor: pointer;
+  border: 3px solid #fff;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.15);
 }

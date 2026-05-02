@@ -1,17 +1,21 @@
 "use client";
 
-import { WagmiProvider } from "wagmi";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { wagmiConfig } from "@/lib/wagmi";
-import { useState } from "react";
+import * as React from "react";
+import { ThemeProvider, buildTheme, PALETTES } from "@/components/cp/theme";
+import { TweaksPanel } from "@/components/cp/tweaks-panel";
+import { useTweaks } from "@/lib/use-tweaks";
+import { InferProvider } from "@/lib/use-infer-state";
 
 export function Providers({ children }: { children: React.ReactNode }) {
-  const [queryClient] = useState(() => new QueryClient());
+  const [tweaks, set] = useTweaks();
+  const palette = PALETTES[tweaks.palette] ?? PALETTES.emerald;
+  const theme = React.useMemo(() => buildTheme(palette, tweaks.dark), [palette, tweaks.dark]);
   return (
-    <WagmiProvider config={wagmiConfig}>
-      <QueryClientProvider client={queryClient}>
+    <ThemeProvider value={theme}>
+      <InferProvider>
         {children}
-      </QueryClientProvider>
-    </WagmiProvider>
+        <TweaksPanel tweaks={tweaks} set={set}/>
+      </InferProvider>
+    </ThemeProvider>
   );
 }

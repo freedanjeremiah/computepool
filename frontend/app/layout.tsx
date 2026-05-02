@@ -1,43 +1,33 @@
 import type { Metadata } from "next";
-import { Inter, Instrument_Serif, JetBrains_Mono } from "next/font/google";
+import { Sora, Instrument_Sans, JetBrains_Mono } from "next/font/google";
 import { Providers } from "./providers";
 import "./globals.css";
 
-const inter = Inter({
-  variable: "--font-sans",
+const sora = Sora({
+  variable: "--font-display",
   subsets: ["latin"],
   weight: ["400", "500", "600", "700"],
 });
-
-const jetbrainsMono = JetBrains_Mono({
+const instrumentSans = Instrument_Sans({
+  variable: "--font-body",
+  subsets: ["latin"],
+  weight: ["400", "500", "600"],
+});
+const jbMono = JetBrains_Mono({
   variable: "--font-mono",
   subsets: ["latin"],
-  weight: ["300", "400", "500", "700"],
-});
-
-const instrumentSerif = Instrument_Serif({
-  variable: "--font-serif",
-  subsets: ["latin"],
-  weight: ["400"],
-  style: ["normal", "italic"],
+  weight: ["400", "500"],
 });
 
 export const metadata: Metadata = {
-  title: "ComputePool · OpenAgents 2026",
-  description: "A market of intelligent NFTs that bid against each other to run your AI model.",
+  title: "ComputePool",
+  description: "A live atlas of decentralized compute. Pay by the second.",
 };
 
-export default function RootLayout({
-  children,
-}: Readonly<{
-  children: React.ReactNode;
-}>) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html
-      lang="en"
-      className={`${inter.variable} ${jetbrainsMono.variable} ${instrumentSerif.variable} h-full antialiased`}
-    >
-      <body className="min-h-full flex flex-col">
+    <html lang="en" className={`${sora.variable} ${instrumentSans.variable} ${jbMono.variable}`}>
+      <body>
         <Providers>{children}</Providers>
       </body>
     </html>
