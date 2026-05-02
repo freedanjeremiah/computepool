@@ -17,6 +17,9 @@ from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
 from pymongo.errors import DuplicateKeyError
 
+from web3 import AsyncWeb3, AsyncHTTPProvider
+from eth_account import Account as _EthAccount
+
 from . import db
 from .auth import (
     generate_api_key,
@@ -29,6 +32,9 @@ from .api.infer import build_router as build_infer_router
 from .chain import Chain
 from .tee.signer import TEESigner
 from .economics import EconomicsService
+from .inft.client import INFTClient
+from .inft.service import build_and_mint_for_pool
+from .inft.storage_0g import upload_blob
 from .keeperhub import KeeperHubClient
 from .settings import get_settings
 from .webhooks import build_router as build_webhooks_router
@@ -195,6 +201,22 @@ async def lifespan(app: FastAPI):
         _tee_signer = TEESigner.from_keyfile(_tee_settings.tee_signer_key_path)
     app.state.tee_signer = _tee_signer
     app.include_router(build_attestation_router(_tee_signer))
+
+    # INFT client wiring — only if contract address + oracle key are configured.
+    if _tee_settings.inft_contract_addr and _tee_settings.inft_oracle_private_key:
+        _w3 = AsyncWeb3(AsyncHTTPProvider(_tee_settings.zero_g_chain_rpc))
+        _admin = _EthAccount.from_key(_tee_settings.inft_oracle_private_key)
+        app.state.inft_client = INFTClient(
+            w3=_w3,
+            address=_tee_settings.inft_contract_addr,
+            admin_account=_admin,
+            chain_id=_tee_settings.zero_g_chain_id,
+        )
+    else:
+        app.state.inft_client = None
+        logger.warning(
+            "INFT_CONTRACT_ADDR or INFT_ORACLE_PRIVATE_KEY not set; INFT minting + auth gate disabled"
+        )
 
     # Economics wiring (KH client, on-chain reader, EconomicsService)
     try:
@@ -710,6 +732,36 @@ async def pools_load(name: str, user: dict = Depends(get_current_user)):
         {"$set": {"loaded": True, "updated_at": _now()}},
     )
     pool = await db.pools().find_one({"_id": pool["_id"]})
+
+    # Best-effort INFT mint. Skips silently when prerequisites aren't met so the
+    # load itself doesn't fail; operators surface unminted pools via the migration.
+    if app.state.inft_client is not None and not pool.get("inft_token_id"):
+        owner_doc = await db.users().find_one({"username": pool["owner_username"]})
+        if owner_doc and owner_doc.get("wallet_address") and owner_doc.get("wallet_pubkey"):
+            try:
+                out = await build_and_mint_for_pool(
+                    pool_doc=pool,
+                    owner_address=owner_doc["wallet_address"],
+                    owner_pubkey_uncompressed=bytes.fromhex(owner_doc["wallet_pubkey"]),
+                    orchestrator_signer=app.state.inft_client.admin.address,
+                    upload=upload_blob,
+                    client=app.state.inft_client,
+                    indexer_url=get_settings().zero_g_storage_indexer_url,
+                    hf_revision="main",
+                    total_layers=MODEL_LAYERS[pool["model"]],
+                )
+                await db.pools().update_one(
+                    {"_id": pool["_id"]},
+                    {"$set": {"inft_token_id": out["token_id"], "inft_metadata_uri": out["metadata_uri"]}},
+                )
+                pool.update({"inft_token_id": out["token_id"], "inft_metadata_uri": out["metadata_uri"]})
+            except Exception as e:
+                logger.exception("INFT mint failed for pool=%s: %s", pool["name"], e)
+        else:
+            logger.warning(
+                "skip INFT mint for pool=%s: owner missing wallet_address/wallet_pubkey", pool["name"]
+            )
+
     return {"ok": True, "pool": pool_to_response(pool), "acks": acks}
 
 
