@@ -1,2 +1,4 @@
 /worker/__pycache__
+/worker/tests/__pycache__
 /orchestrator/__pycache__
+.venv/
