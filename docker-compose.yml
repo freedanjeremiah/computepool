@@ -66,6 +66,25 @@ services:
       - discom
     restart: unless-stopped
 
+  facilitator:
+    build:
+      context: ./facilitator
+      dockerfile: Dockerfile
+    container_name: cp-facilitator
+    environment:
+      SEPOLIA_RPC_URL: ${SEPOLIA_RPC_URL}
+      RELAYER_PRIVATE_KEY: ${RELAYER_PRIVATE_KEY}
+      USDC_ADDRESS: ${USDC_ADDRESS}
+    ports:
+      - "4021:4021"
+    networks:
+      - default
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:4021/health').read()"]
+      interval: 5s
+      timeout: 2s
+      retries: 5
+
 volumes:
   node-a-data:
   node-b-data:
