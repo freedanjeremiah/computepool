@@ -15,7 +15,8 @@ class Settings(BaseSettings):
     keeperhub_base_url: str = "https://app.keeperhub.com"
     keeperhub_webhook_secret: str
     kh_workflow_coalition_form: str  # alias: compute-coalition-propose
-    kh_workflow_activate_and_pool: str  # compute-coalition-activate-and-pool
+    kh_workflow_activate_and_pool: str  # compute-coalition-activate-and-pool (now activate + create-pool only)
+    kh_workflow_set_member_units: str = ""  # compute-coalition-set-member-units (one call per worker)
     kh_workflow_stream_start: str
     kh_workflow_stream_stop: str
     kh_workflow_handle_breach: str

@@ -28,6 +28,7 @@ def build_router(economics) -> APIRouter:
             "coalition_proposed": economics.on_coalition_proposed,
             "coalition_activated": economics.on_coalition_activated,
             "payment_pool_ready": economics.on_payment_pool_ready,
+            "member_units_set": getattr(economics, "on_member_units_set", None),
             "stream_started": getattr(economics, "on_stream_started", None),
             "stream_stopped": getattr(economics, "on_stream_stopped", None),
             "coalition_dissolved": getattr(economics, "on_coalition_dissolved", None),

@@ -81,6 +81,31 @@ class Chain:
         c = self.w3.eth.contract(address=AsyncWeb3.to_checksum_address(pool), abi=POOL_ABI)
         return await c.functions.getTotalUnits().call()
 
+    async def get_pool_from_create_tx(self, tx_hash: str) -> str | None:
+        """Extract the deployed pool address from a GDA createPool tx.
+
+        Replays the original call via eth_call at the block just before the
+        original tx, then decodes the abi-packed `(bool success, address pool)`
+        return value.
+        """
+        tx = await self.w3.eth.get_transaction(tx_hash)
+        if not tx.get("blockNumber"):
+            return None
+        try:
+            raw = await self.w3.eth.call(
+                {"from": tx["from"], "to": tx["to"], "data": tx["input"]},
+                tx["blockNumber"] - 1,
+            )
+        except Exception:
+            return None
+        if len(raw) < 64:
+            return None
+        # Outputs: bool success (32 bytes), address pool (32 bytes, right-aligned)
+        addr_bytes = raw[44:64]
+        if all(b == 0 for b in addr_bytes):
+            return None
+        return AsyncWeb3.to_checksum_address("0x" + addr_bytes.hex())
+
     async def get_proposed_id_from_tx(self, tx_hash: str) -> int | None:
         """Look up the on-chain coalition id from a Coalition.propose tx.
 

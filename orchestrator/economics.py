@@ -244,31 +244,114 @@ class EconomicsService:
         logger.info("coalition activated session_id=%s", coalition_id)
 
     async def on_payment_pool_ready(self, payload: dict) -> None:
-        """Webhook: GDA pool created and member units assigned.
+        """Webhook: KH activate + createPool succeeded.
 
-        Tells each worker to connectPool from its own key.
+        KH's HTTP Request action can't surface the createPool struct return,
+        so the workflow only tells us the create-pool tx hash. We extract the
+        new pool address by replaying the call via eth_call, then trigger one
+        ``set-member-units`` workflow per participant. The ``connectPool``
+        worker fanout fires from ``on_member_units_set`` once all units land.
         """
         coalition_id = payload["session_id"]
         coalition = await self.db.coalitions.find_one({"_id": coalition_id})
-        pool_address = payload["pool_address"]
+        if coalition is None:
+            logger.error("payment_pool_ready: no coalition for session %s", coalition_id)
+            return
+
+        pool_address = payload.get("pool_address") or ""
+        if not pool_address.startswith("0x") and self.chain:
+            tx = payload.get("create_pool_tx") or ""
+            if tx:
+                resolved = await self.chain.get_pool_from_create_tx(tx)
+                if resolved:
+                    pool_address = resolved
+        if not pool_address.startswith("0x"):
+            logger.error(
+                "payment_pool_ready: cannot resolve pool address (payload=%r)",
+                payload,
+            )
+            return
+
+        super_token = payload.get("super_token") or self.settings.usdcx_address
         await self.db.payment_pools.update_one(
             {"pool_id": coalition["pool_id"]},
             {
                 "$set": {
                     "superfluid_pool_address": pool_address,
-                    "super_token": payload.get(
-                        "super_token", self.settings.usdcx_address
-                    ),
-                    "state": PaymentPoolState.READY.value,
+                    "super_token": super_token,
+                    "state": PaymentPoolState.INITIALIZING.value,
+                    "members_set_count": 0,
+                    "members_target": len(coalition["participants"]),
                 }
             },
             upsert=True,
         )
 
-        participants = coalition["participants"]
+        # Derive units per participant from the pool's layer assignments.
+        pool = await self.db.pools.find_one({"_id": coalition["pool_id"]})
+        units_by_addr = self._units_by_participant(pool, coalition["participants"])
+
+        if not self.settings.kh_workflow_set_member_units:
+            logger.error("KH_WORKFLOW_SET_MEMBER_UNITS not configured")
+            return
+
+        for addr in coalition["participants"]:
+            await self.kh.execute_workflow(
+                self.settings.kh_workflow_set_member_units,
+                inputs={
+                    "session_id": coalition_id,
+                    "pool_address": pool_address,
+                    "member_address": addr,
+                    "units": str(units_by_addr.get(addr, 1)),
+                    "callback_url": self.settings.public_url.rstrip("/")
+                    + "/webhooks/keeperhub",
+                },
+            )
+        logger.info(
+            "set-member-units workflows triggered (%d) session_id=%s pool=%s",
+            len(coalition["participants"]), coalition_id, pool_address,
+        )
+
+    async def on_member_units_set(self, payload: dict) -> None:
+        """Webhook: one participant's GDA units have been set.
+
+        After all participants are done, mark the pool READY and drive the
+        worker connectPool fanout.
+        """
+        coalition_id = payload["session_id"]
+        coalition = await self.db.coalitions.find_one({"_id": coalition_id})
+        if coalition is None:
+            return
+        pp = await self.db.payment_pools.find_one({"pool_id": coalition["pool_id"]})
+        if pp is None:
+            return
+
+        pool_address = pp["superfluid_pool_address"]
+        target = pp.get("members_target") or len(coalition["participants"])
+
+        result = await self.db.payment_pools.update_one(
+            {"_id": pp["_id"]},
+            {"$inc": {"members_set_count": 1}},
+        )
+        # Re-read to get the new count
+        pp = await self.db.payment_pools.find_one({"_id": pp["_id"]})
+        count = pp.get("members_set_count", 0)
+        logger.info(
+            "member_units_set %s (%d/%d) pool=%s",
+            payload.get("member_address"), count, target, pool_address,
+        )
+        if count < target:
+            return
+
+        # All members assigned units — flip state and drive worker connectPool.
+        await self.db.payment_pools.update_one(
+            {"_id": pp["_id"]},
+            {"$set": {"state": PaymentPoolState.READY.value}},
+        )
+
         nodes = await self.db.nodes.find(
-            {"wallet_address": {"$in": participants}}
-        ).to_list(length=len(participants))
+            {"wallet_address": {"$in": coalition["participants"]}}
+        ).to_list(length=len(coalition["participants"]))
 
         async def _connect_one(node: dict) -> str:
             url = f"{node['worker_url'].rstrip('/')}/coalition/connect-pool"
