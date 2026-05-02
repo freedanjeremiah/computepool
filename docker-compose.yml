@@ -30,6 +30,8 @@ services:
       PEER_HOST: node-b
       AXL_API_URL: http://localhost:9002
       OWNER_API_KEY: ${OWNER_API_KEY:-}
+      WORKER_PRIVATE_KEY: ${WORKER_A_PRIVATE_KEY:-}
+      SEPOLIA_RPC_URL: ${SEPOLIA_RPC_URL:-https://ethereum-sepolia-rpc.publicnode.com}
     volumes:
       - node-a-data:/data
       - hf-cache:/root/.cache/huggingface
@@ -55,6 +57,8 @@ services:
       PEER_HOST: node-a
       AXL_API_URL: http://localhost:9002
       OWNER_API_KEY: ${OWNER_API_KEY:-}
+      WORKER_PRIVATE_KEY: ${WORKER_B_PRIVATE_KEY:-}
+      SEPOLIA_RPC_URL: ${SEPOLIA_RPC_URL:-https://ethereum-sepolia-rpc.publicnode.com}
     volumes:
       - node-b-data:/data
       - hf-cache:/root/.cache/huggingface
