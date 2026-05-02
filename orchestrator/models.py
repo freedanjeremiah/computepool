@@ -4,6 +4,7 @@ import ipaddress
 import os
 import re
 from datetime import datetime
+from enum import Enum
 from typing import Any, Literal, Optional
 from urllib.parse import urlparse
 
@@ -236,3 +237,66 @@ def pool_to_response(doc: dict) -> dict:
         "created_at": doc.get("created_at"),
         "updated_at": doc.get("updated_at"),
     }
+
+
+class CoalitionState(str, Enum):
+    PROPOSED = "proposed"
+    ACTIVATING = "activating"
+    ACTIVE = "active"
+    DISSOLVED = "dissolved"
+    EXPIRED = "expired"
+
+
+class Coalition(BaseModel):
+    id: str
+    pool_id: str
+    onchain_id: int | None = None
+    terms_hash: str
+    participants: list[str]
+    signatures: dict[str, str] = Field(default_factory=dict)
+    state: CoalitionState
+    deadline: datetime
+    created_at: datetime
+    tx_hashes: dict[str, str] = Field(default_factory=dict)
+
+
+class PaymentPoolState(str, Enum):
+    INITIALIZING = "initializing"
+    READY = "ready"
+    STREAMING = "streaming"
+    STOPPED = "stopped"
+
+
+class PaymentPool(BaseModel):
+    id: str
+    pool_id: str
+    superfluid_pool_address: str | None = None
+    super_token: str
+    member_units: dict[str, int] = Field(default_factory=dict)
+    state: PaymentPoolState = PaymentPoolState.INITIALIZING
+    current_flow_rate_wei_per_sec: str = "0"
+    created_at: datetime
+
+
+class PaymentState(str, Enum):
+    VERIFIED = "verified"
+    STREAMING = "streaming"
+    STOPPED = "stopped"
+    SETTLED = "settled"
+    ORPHANED = "orphaned"
+
+
+class Payment(BaseModel):
+    id: str
+    pool_id: str
+    payer: str
+    amount_usdc_micro: int
+    amount_usdcx_wei: str
+    flow_rate_wei_per_sec: str
+    estimated_duration_s: float
+    inference_request_id: str
+    state: PaymentState
+    created_at: datetime
+    stream_open_tx: str | None = None
+    stream_close_tx: str | None = None
+    settle_tx: str | None = None
