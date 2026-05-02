@@ -1,6 +1,7 @@
 import json
 
 from eth_account import Account
+from eth_utils import is_address
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from web3 import AsyncHTTPProvider, AsyncWeb3
@@ -36,6 +37,45 @@ GDA_FORWARDER_ABI = json.loads("""[
 ]""")
 
 
+_w3: AsyncWeb3 | None = None
+_acct = None
+
+
+def _get_w3() -> AsyncWeb3:
+    global _w3
+    if _w3 is None:
+        _w3 = AsyncWeb3(AsyncHTTPProvider(get_settings().sepolia_rpc_url))
+    return _w3
+
+
+def _get_acct():
+    global _acct
+    if _acct is None:
+        _acct = Account.from_key(get_settings().worker_private_key)
+    return _acct
+
+
+async def _send_tx(w3: AsyncWeb3, acct, fn, *, default_gas: int) -> str:
+    """Build, sign, broadcast, wait for receipt; raise on revert."""
+    tx = await fn.build_transaction({
+        "from": acct.address,
+        "nonce": await w3.eth.get_transaction_count(acct.address),
+        "chainId": await w3.eth.chain_id,
+    })
+    try:
+        est = await w3.eth.estimate_gas(tx)
+        tx["gas"] = int(est * 1.2)
+    except Exception:
+        tx["gas"] = default_gas
+    signed = acct.sign_transaction(tx)
+    raw = getattr(signed, "raw_transaction", None) or getattr(signed, "rawTransaction", None)
+    tx_hash = await w3.eth.send_raw_transaction(raw)
+    receipt = await w3.eth.wait_for_transaction_receipt(tx_hash)
+    if receipt["status"] != 1:
+        raise HTTPException(500, f"tx reverted: {tx_hash.hex()}")
+    return tx_hash.hex()
+
+
 class SignOnChainRequest(BaseModel):
     coalition_onchain_id: int
     coalition_address: str
@@ -48,24 +88,8 @@ class SignOnChainResponse(BaseModel):
     signer: str
 
 
-def _is_address(v: str) -> bool:
-    if not isinstance(v, str):
-        return False
-    if not v.startswith("0x") or len(v) != 42:
-        return False
-    try:
-        int(v, 16)
-    except ValueError:
-        return False
-    return True
-
-
 async def _ensure_stake_approved(
-    w3: "AsyncWeb3",
-    acct,
-    stake_token: str,
-    spender: str,
-    amount: int,
+    w3: AsyncWeb3, acct, stake_token: str, spender: str, amount: int,
 ) -> None:
     token = w3.eth.contract(
         address=AsyncWeb3.to_checksum_address(stake_token),
@@ -75,23 +99,7 @@ async def _ensure_stake_approved(
     current = await token.functions.allowance(acct.address, spender_cs).call()
     if current >= amount:
         return
-    fn = token.functions.approve(spender_cs, amount)
-    tx = await fn.build_transaction({
-        "from": acct.address,
-        "nonce": await w3.eth.get_transaction_count(acct.address),
-        "chainId": await w3.eth.chain_id,
-    })
-    try:
-        est = await w3.eth.estimate_gas(tx)
-        tx["gas"] = int(est * 1.2)
-    except Exception:
-        tx["gas"] = 100_000
-    signed = acct.sign_transaction(tx)
-    raw = getattr(signed, "raw_transaction", None) or getattr(signed, "rawTransaction", None)
-    tx_hash = await w3.eth.send_raw_transaction(raw)
-    receipt = await w3.eth.wait_for_transaction_receipt(tx_hash)
-    if receipt["status"] != 1:
-        raise HTTPException(500, f"approve tx reverted: {tx_hash.hex()}")
+    await _send_tx(w3, acct, token.functions.approve(spender_cs, amount), default_gas=100_000)
 
 
 async def _submit_sign_onchain(
@@ -100,30 +108,15 @@ async def _submit_sign_onchain(
     stake_token: str,
     stake_amount: int,
 ) -> tuple[str, str]:
-    settings = get_settings()
-    w3 = AsyncWeb3(AsyncHTTPProvider(settings.sepolia_rpc_url))
-    acct = Account.from_key(settings.worker_private_key)
+    w3 = _get_w3()
+    acct = _get_acct()
     coalition_cs = AsyncWeb3.to_checksum_address(coalition_address)
     await _ensure_stake_approved(w3, acct, stake_token, coalition_cs, stake_amount)
     contract = w3.eth.contract(address=coalition_cs, abi=COALITION_SIGN_ABI)
-    fn = contract.functions.sign(coalition_onchain_id)
-    tx = await fn.build_transaction({
-        "from": acct.address,
-        "nonce": await w3.eth.get_transaction_count(acct.address),
-        "chainId": await w3.eth.chain_id,
-    })
-    try:
-        est = await w3.eth.estimate_gas(tx)
-        tx["gas"] = int(est * 1.2)
-    except Exception:
-        tx["gas"] = 200_000
-    signed = acct.sign_transaction(tx)
-    raw = getattr(signed, "raw_transaction", None) or getattr(signed, "rawTransaction", None)
-    tx_hash = await w3.eth.send_raw_transaction(raw)
-    receipt = await w3.eth.wait_for_transaction_receipt(tx_hash)
-    if receipt["status"] != 1:
-        raise HTTPException(500, f"sign tx reverted: {tx_hash.hex()}")
-    return tx_hash.hex(), acct.address
+    tx_hash = await _send_tx(
+        w3, acct, contract.functions.sign(coalition_onchain_id), default_gas=200_000,
+    )
+    return tx_hash, acct.address
 
 
 class ConnectPoolRequest(BaseModel):
@@ -135,35 +128,19 @@ class ConnectPoolResponse(BaseModel):
 
 
 async def _submit_connect_pool(pool_address: str) -> str:
-    settings = get_settings()
-    w3 = AsyncWeb3(AsyncHTTPProvider(settings.sepolia_rpc_url))
-    acct = Account.from_key(settings.worker_private_key)
+    w3 = _get_w3()
+    acct = _get_acct()
     forwarder = w3.eth.contract(
-        address=AsyncWeb3.to_checksum_address(settings.gda_v1_forwarder),
+        address=AsyncWeb3.to_checksum_address(get_settings().gda_v1_forwarder),
         abi=GDA_FORWARDER_ABI,
     )
-    fn = forwarder.functions.connectPool(
-        AsyncWeb3.to_checksum_address(pool_address), b""
-    )
-    tx = await fn.build_transaction({
-        "from": acct.address,
-        "nonce": await w3.eth.get_transaction_count(acct.address),
-        "chainId": await w3.eth.chain_id,
-    })
-    try:
-        est = await w3.eth.estimate_gas(tx)
-        tx["gas"] = int(est * 1.2)
-    except Exception:
-        tx["gas"] = 200_000
-    signed = acct.sign_transaction(tx)
-    raw = getattr(signed, "raw_transaction", None) or getattr(signed, "rawTransaction", None)
-    tx_hash = await w3.eth.send_raw_transaction(raw)
-    return tx_hash.hex()
+    fn = forwarder.functions.connectPool(AsyncWeb3.to_checksum_address(pool_address), b"")
+    return await _send_tx(w3, acct, fn, default_gas=200_000)
 
 
 @router.post("/coalition/connect-pool", response_model=ConnectPoolResponse)
 async def connect_pool(req: ConnectPoolRequest) -> ConnectPoolResponse:
-    if not _is_address(req.pool_address):
+    if not is_address(req.pool_address):
         raise HTTPException(400, "pool_address must be 0x + 40 hex chars")
     tx_hash = await _submit_connect_pool(req.pool_address)
     return ConnectPoolResponse(tx_hash=tx_hash)
@@ -171,9 +148,9 @@ async def connect_pool(req: ConnectPoolRequest) -> ConnectPoolResponse:
 
 @router.post("/coalition/sign-onchain", response_model=SignOnChainResponse)
 async def sign_onchain(req: SignOnChainRequest) -> SignOnChainResponse:
-    if not _is_address(req.coalition_address):
+    if not is_address(req.coalition_address):
         raise HTTPException(400, "coalition_address must be 0x + 40 hex chars")
-    if not _is_address(req.stake_token):
+    if not is_address(req.stake_token):
         raise HTTPException(400, "stake_token must be 0x + 40 hex chars")
     try:
         amount = int(req.stake_amount)
