@@ -117,3 +117,30 @@ async def verify(req: VerifyRequest) -> VerifyResponse:
         return VerifyResponse(isValid=False, invalidReason="balance insufficient")
 
     return VerifyResponse(isValid=True, payer=auth["from"])
+
+
+@app.post("/settle", response_model=SettleResponse)
+async def settle(req: SettleRequest) -> SettleResponse:
+    auth = req.paymentPayload.payload["authorization"]
+    sig = req.paymentPayload.payload["signature"]
+    v, r_bytes, s_bytes = split_signature(sig)
+    nonce = bytes.fromhex(auth["nonce"][2:] if auth["nonce"].startswith("0x") else auth["nonce"])
+    try:
+        result = await chain.submit_transfer_with_authorization(
+            frm=auth["from"],
+            to=auth["to"],
+            value=int(auth["value"]),
+            valid_after=int(auth["validAfter"]),
+            valid_before=int(auth["validBefore"]),
+            nonce=nonce,
+            v=v, r=r_bytes, s=s_bytes,
+        )
+    except Exception as e:
+        return SettleResponse(success=False, errorReason=str(e), payer=auth["from"])
+
+    return SettleResponse(
+        success=result["status"] == 1,
+        transaction=result["tx_hash"],
+        payer=auth["from"],
+        network="sepolia",
+    )
