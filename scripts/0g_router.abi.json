@@ -1,0 +1,26 @@
+[
+  {
+    "type": "function",
+    "name": "registerService",
+    "stateMutability": "nonpayable",
+    "inputs": [
+      {"name": "name", "type": "string"},
+      {"name": "url", "type": "string"},
+      {"name": "signer", "type": "address"}
+    ],
+    "outputs": []
+  },
+  {
+    "type": "function",
+    "name": "getService",
+    "stateMutability": "view",
+    "inputs": [
+      {"name": "owner", "type": "address"},
+      {"name": "name", "type": "string"}
+    ],
+    "outputs": [
+      {"name": "url", "type": "string"},
+      {"name": "signer", "type": "address"}
+    ]
+  }
+]
