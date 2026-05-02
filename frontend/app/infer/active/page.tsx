@@ -30,7 +30,6 @@ export default function InferStep4() {
   const [tickN, setTickN] = React.useState(0);
   const [phase, setPhase] = React.useState<"connecting" | "streaming" | "settling" | "done" | "error">("connecting");
   const [errorMsg, setErrorMsg] = React.useState<string | null>(null);
-  const startedRef = React.useRef(false);
 
   React.useEffect(() => {
     const id = setInterval(() => setTickN((n) => n + 1), 16);
@@ -62,9 +61,13 @@ export default function InferStep4() {
   }, [live]);
 
   // ── Live branch ─────────────────────────────────────────────
+  // Canonical async-effect pattern: per-effect AbortController; cleanup
+  // signals abort. A `cancelled` closure prevents stale setState from a
+  // pre-strict-mode-cleanup invocation overwriting the live one. React 19
+  // dev strict mode mounts effects twice with a cleanup between — the first
+  // run is aborted before fetch headers return; the second run owns the UI.
   React.useEffect(() => {
-    if (!live || startedRef.current) return;
-    startedRef.current = true;
+    if (!live) return;
     const auth = loadAuth();
     if (!auth || !state.xPayment) {
       setErrorMsg("missing auth or signed payment — go back to /infer/review");
@@ -73,6 +76,7 @@ export default function InferStep4() {
     }
     const ac = new AbortController();
     const startedAt = Date.now();
+    let cancelled = false;
     setPhase("streaming");
 
     (async () => {
@@ -91,6 +95,7 @@ export default function InferStep4() {
           xPayment: state.xPayment!,
           signal: ac.signal,
         })) {
+          if (cancelled) return;
           if (ev.event === "token") {
             acc += ev.delta;
             tk += 1;
@@ -113,6 +118,7 @@ export default function InferStep4() {
             setPhase("error");
           }
         }
+        if (cancelled) return;
         const durMs = Date.now() - startedAt;
         saveJob({
           request_id: requestId || crypto.randomUUID(),
@@ -133,9 +139,16 @@ export default function InferStep4() {
           durationMs: durMs, settleTx, breached: false,
         }));
         // tiny delay so user sees "settled" tick before navigating
-        setTimeout(() => router.push("/infer/result"), 600);
+        setTimeout(() => {
+          if (!cancelled) router.push("/infer/result");
+        }, 600);
       } catch (e) {
-        if ((e as Error).name === "AbortError") return;
+        const name = (e as Error).name;
+        if (cancelled || name === "AbortError" || name === "TypeError") {
+          // TypeError covers "Failed to fetch" when the abort kicks in
+          // during connection setup — still benign.
+          return;
+        }
         setErrorMsg((e as Error).message);
         setPhase("error");
         saveJob({
@@ -149,7 +162,10 @@ export default function InferStep4() {
         });
       }
     })();
-    return () => ac.abort();
+    return () => {
+      cancelled = true;
+      ac.abort();
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [live]);
 
