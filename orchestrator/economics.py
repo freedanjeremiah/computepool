@@ -216,3 +216,105 @@ class EconomicsService:
             party,
             evidence_uri,
         )
+
+    async def on_payment_received(
+        self,
+        *,
+        pool_id: str,
+        payer: str,
+        amount_usdc_micro: int,
+        amount_usdcx_wei: int,
+        estimated_duration_s: float,
+        inference_request_id: str,
+    ) -> None:
+        """Persist a Payment and trigger the stream-start workflow."""
+        flow_rate = max(
+            amount_usdcx_wei // max(1, int(estimated_duration_s)), 10**9
+        )
+        pp = await self.db.payment_pools.find_one({"pool_id": pool_id})
+        if not pp:
+            raise RuntimeError(f"no payment pool for pool_id={pool_id}")
+
+        await self.db.payments.insert_one(
+            {
+                "_id": inference_request_id,
+                "pool_id": pool_id,
+                "payer": payer,
+                "amount_usdc_micro": amount_usdc_micro,
+                "amount_usdcx_wei": str(amount_usdcx_wei),
+                "flow_rate_wei_per_sec": str(flow_rate),
+                "estimated_duration_s": estimated_duration_s,
+                "inference_request_id": inference_request_id,
+                "state": "verified",
+                "created_at": datetime.now(timezone.utc),
+            }
+        )
+
+        await self.kh.execute_workflow(
+            self.settings.kh_workflow_stream_start,
+            inputs=WorkflowInputs.stream_start(
+                session_id=inference_request_id,
+                super_token=self.settings.usdcx_address,
+                pool_address=pp["superfluid_pool_address"],
+                flow_rate_wei_per_sec=str(flow_rate),
+                total_budget_wei=str(amount_usdcx_wei),
+                callback_url=self.settings.public_url.rstrip("/")
+                + "/webhooks/keeperhub",
+            ),
+        )
+
+    async def on_stream_started(self, payload: dict) -> None:
+        await self.db.payments.update_one(
+            {"_id": payload["session_id"]},
+            {
+                "$set": {
+                    "state": "streaming",
+                    "stream_open_tx": payload.get("tx_hash"),
+                }
+            },
+        )
+
+    async def on_inference_complete(
+        self,
+        *,
+        pool_id: str,
+        inference_request_id: str,
+    ) -> None:
+        pp = await self.db.payment_pools.find_one({"pool_id": pool_id})
+        await self.kh.execute_workflow(
+            self.settings.kh_workflow_stream_stop,
+            inputs=WorkflowInputs.stream_stop(
+                session_id=inference_request_id,
+                super_token=self.settings.usdcx_address,
+                pool_address=pp["superfluid_pool_address"],
+                callback_url=self.settings.public_url.rstrip("/")
+                + "/webhooks/keeperhub",
+            ),
+        )
+
+    async def on_stream_stopped(self, payload: dict) -> None:
+        await self.db.payments.update_one(
+            {"_id": payload["session_id"]},
+            {
+                "$set": {
+                    "state": "stopped",
+                    "stream_close_tx": payload.get("tx_hash"),
+                }
+            },
+        )
+
+    async def mark_settled(
+        self,
+        *,
+        inference_request_id: str,
+        settle_tx: str | None,
+    ) -> None:
+        await self.db.payments.update_one(
+            {"_id": inference_request_id},
+            {
+                "$set": {
+                    "state": "settled" if settle_tx else "orphaned",
+                    "settle_tx": settle_tx,
+                }
+            },
+        )
