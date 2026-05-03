@@ -11,6 +11,7 @@ import { useBreakpoint } from "@/lib/use-breakpoint";
 export default function LandingPage() {
   const T = useT();
   const isMobile = useBreakpoint();
+  const [openFaq, setOpenFaq] = React.useState<number | null>(null);
 
   return (
     <div style={{ background: T.bg, minHeight: "100vh" }}>
@@ -109,6 +110,30 @@ export default function LandingPage() {
         </div>
       </section>
 
+      {/* Idle GPU callout */}
+      <div style={{ padding: isMobile ? "0 20px" : "0 64px", maxWidth: 1440, margin: "0 auto" }}>
+        <div style={{
+          borderTop: `1px solid ${T.border}`,
+          borderBottom: `1px solid ${T.border}`,
+          padding: isMobile ? "22px 0" : "28px 0",
+          textAlign: "center",
+          display: "flex", alignItems: "center", justifyContent: "center", gap: 10,
+        }}>
+          <span style={{ width: 7, height: 7, borderRadius: 4, background: T.primary, flexShrink: 0, animation: "cp-pulse 1.6s ease-in-out infinite" }}/>
+          <p style={{
+            fontFamily: FONT_DISPLAY,
+            fontSize: isMobile ? 17 : 22,
+            color: T.text2,
+            margin: 0,
+            letterSpacing: "-0.01em",
+            lineHeight: 1.4,
+          }}>
+            Your GPU earns nothing sitting idle.{" "}
+            <span style={{ color: T.text1, fontWeight: 600 }}>List it once, get paid by the second.</span>
+          </p>
+        </div>
+      </div>
+
       {/* How it works */}
       <section style={{ padding: isMobile ? "48px 20px" : "80px 64px", maxWidth: 1440, margin: "0 auto" }}>
         <div style={{ marginBottom: 36 }}>
@@ -200,6 +225,86 @@ export default function LandingPage() {
               </div>
             </Card>
           ))}
+        </div>
+      </section>
+
+      {/* FAQ */}
+      <section style={{ padding: isMobile ? "40px 20px 48px" : "80px 64px 80px", maxWidth: 1440, margin: "0 auto" }}>
+        <div style={{ marginBottom: isMobile ? 32 : 52 }}>
+          <div style={{ fontFamily: FONT_MONO, fontSize: 11, color: T.text3, textTransform: "uppercase", letterSpacing: "0.08em" }}>Common questions</div>
+          <h2 style={{
+            fontFamily: FONT_DISPLAY, fontWeight: 600,
+            fontSize: isMobile ? 30 : 44,
+            color: T.text1, letterSpacing: "-0.02em", margin: "8px 0 0",
+          }}>
+            Everything you'd want to know.
+          </h2>
+        </div>
+
+        <div style={{ maxWidth: 800, margin: "0 auto" }}>
+          {([
+            { group: "For node operators" },
+            { q: "My gaming PC sits idle most of the day. Can it actually earn?", a: "Yes — that's exactly the use case. ComputePool splits a model's layers across two machines, so a single RTX 3060 or 4070 running just half the network is a valid earning node. A 70B model would normally need 140 GB of VRAM; two consumer cards sharing the load can cover it together. If your card can handle half a model, you're in." },
+            { q: "My GPU is only 8 GB — is that enough to start earning?", a: "For the models currently live, yes. The 1B–4B parameter range needs far less VRAM per shard, and 8 GB comfortably covers one side of the split. Larger model support with more shard sizes is on the roadmap, which opens up more earning tiers over time." },
+            { q: "Do I have to commit to being online all the time?", a: "Not at all. Your node earns only when it's actively serving a job — there is no uptime commitment. Go offline whenever you want. If you disconnect mid-job, KeeperHub detects it, stops the job, and the caller is refunded. No penalty for going offline cleanly." },
+            { q: "When does money actually start flowing into my wallet?", a: "The moment inference begins. Superfluid opens a real-time payment stream as soon as a job starts, so USDCx flows in continuously while your node is computing — by the second, not in a lump sum at the end." },
+            { group: "For users running inference" },
+            { q: "Why is it so much cheaper than cloud APIs?", a: "Operators set their own price per token with zero platform markup. Since anyone with spare compute can become an operator, prices reflect real marginal cost — electricity and hardware amortisation — not cloud profit margins. On testnet, demo pools run at a fraction of OpenAI pricing." },
+            { q: "What if a node drops out while generating my response?", a: "It is handled automatically. KeeperHub monitors every job; if a node misses its heartbeat mid-generation it gets slashed on-chain and your unused budget is refunded immediately. No dispute, no waiting — enforced by the workflow." },
+            { q: "What models can I run right now?", a: "Llama 3.2 (1B and 3B), Qwen 2.5-3B-Instruct, and Qwen3-4B-Instruct are live today. Operators can add any HuggingFace model — the layer split is calculated automatically from the model's architecture." },
+            { group: "General" },
+            { q: "Is the code open source?", a: "Fully. The orchestrator, worker, smart contracts, and KeeperHub workflows are all public. You can self-host an entire pool with a single make build && make up and start earning in minutes." },
+          ] as const).map((item, i) => {
+            if ("group" in item) {
+              return (
+                <div key={i} style={{
+                  marginTop: i === 0 ? 0 : 36,
+                  marginBottom: 12,
+                  fontFamily: FONT_MONO, fontSize: 11, color: T.primary,
+                  textTransform: "uppercase", letterSpacing: "0.1em", fontWeight: 500,
+                }}>
+                  {item.group}
+                </div>
+              );
+            }
+            const idx = i;
+            const isOpen = openFaq === idx;
+            return (
+              <div key={i} style={{ borderBottom: `1px solid ${T.border}` }}>
+                <button
+                  onClick={() => setOpenFaq(isOpen ? null : idx)}
+                  style={{
+                    display: "flex", justifyContent: "space-between", alignItems: "center",
+                    width: "100%", background: "none", border: "none", cursor: "pointer",
+                    padding: "18px 0", textAlign: "left", gap: 16,
+                  }}
+                >
+                  <span style={{ fontFamily: FONT_DISPLAY, fontSize: isMobile ? 15 : 17, fontWeight: 600, color: T.text1, lineHeight: 1.3 }}>
+                    {item.q}
+                  </span>
+                  <span style={{
+                    flexShrink: 0, width: 22, height: 22, borderRadius: 11,
+                    border: `1.5px solid ${T.border}`,
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    fontFamily: FONT_MONO, fontSize: 16, color: isOpen ? T.primary : T.text3,
+                    borderColor: isOpen ? T.primary : T.border,
+                    transition: "color 0.15s, border-color 0.15s",
+                  }}>
+                    {isOpen ? "−" : "+"}
+                  </span>
+                </button>
+                {isOpen && (
+                  <div style={{
+                    paddingBottom: 20,
+                    fontFamily: FONT_BODY, fontSize: isMobile ? 14 : 15,
+                    color: T.text2, lineHeight: 1.65, maxWidth: 680,
+                  }}>
+                    {item.a}
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
       </section>
 
