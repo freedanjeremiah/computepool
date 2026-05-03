@@ -164,7 +164,5 @@ All endpoints except `/`, `/health`, `/api/models`, `/auth/*` require `X-API-Key
 
 ## Team & contact
 
-Single-builder hackathon entry. Contact via the wallet shown on the live dashboard, or open an issue on this repo.
-
 **Architecture deep-dive:** [`docs/`](docs/)
 **Sponsor judging packets:** [`sponsors/`](sponsors/)
