@@ -30,8 +30,9 @@ class INFTClient:
             "chainId": self.chain_id,
             "nonce": nonce,
             "gas": self.gas,
-            "maxFeePerGas": int(2e9),
-            "maxPriorityFeePerGas": int(2e9),
+            # 0G Galileo enforces a 2 gwei minimum tip; price slightly above.
+            "maxFeePerGas": int(3e9),
+            "maxPriorityFeePerGas": int(3e9),
         })
         signed = sender.sign_transaction(tx)
         h = await self.w3.eth.send_raw_transaction(signed.raw_transaction)

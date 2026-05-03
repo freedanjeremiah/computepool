@@ -35,7 +35,27 @@ from .tee.signer import TEESigner
 from .economics import EconomicsService
 from .inft.client import INFTClient
 from .inft.service import build_and_mint_for_pool
-from .inft.storage_0g import upload_blob
+from .inft.storage_0g import upload_blob as _upload_blob_0g
+import base64 as _base64
+
+
+async def upload_blob(data: bytes, *, indexer_url: str) -> str:
+    """Upload to 0G Storage, falling back to an inline base64 ``data:`` URI on failure.
+
+    The 0G Storage indexer requires a chunked-upload protocol that the simple
+    `_upload_blob_0g` helper doesn't implement yet. INFT-encrypted metadata is
+    small (≈1 KB) and the on-chain ``metadataURI`` field is just a string, so
+    inline data URIs work fine for the dev path. Production will swap in a real
+    0G Storage SDK call here.
+    """
+    try:
+        return await _upload_blob_0g(data, indexer_url=indexer_url)
+    except Exception as e:
+        logging.getLogger(__name__).warning(
+            "0G Storage upload failed (%s); falling back to inline data: URI", e
+        )
+        b64 = _base64.b64encode(data).decode()
+        return f"data:application/octet-stream;base64,{b64}"
 from .keeperhub import KeeperHubClient
 from .settings import get_settings
 from .webhooks import build_router as build_webhooks_router
@@ -791,8 +811,21 @@ async def pools_load(name: str, user: dict = Depends(get_current_user)):
         owner_doc = await db.users().find_one({"username": pool["owner_username"]})
         if owner_doc and owner_doc.get("wallet_address") and owner_doc.get("wallet_pubkey"):
             try:
+                # Enrich assignments with axl_peer_id from the nodes collection — the
+                # PoolMetadata schema needs an axl_pubkey per role and the assignment
+                # row only has node_id/role/layers.
+                node_ids = [a["node_id"] for a in (pool.get("assignments") or [])]
+                node_docs = await db.nodes().find(
+                    {"node_id": {"$in": node_ids}}
+                ).to_list(length=len(node_ids))
+                axl_by_node = {n["node_id"]: (n.get("axl_peer_id") or "") for n in node_docs}
+                pool_for_mint = dict(pool)
+                pool_for_mint["assignments"] = [
+                    {**a, "axl_pubkey": axl_by_node.get(a["node_id"], "")}
+                    for a in (pool.get("assignments") or [])
+                ]
                 out = await build_and_mint_for_pool(
-                    pool_doc=pool,
+                    pool_doc=pool_for_mint,
                     owner_address=owner_doc["wallet_address"],
                     owner_pubkey_uncompressed=bytes.fromhex(owner_doc["wallet_pubkey"]),
                     orchestrator_signer=app.state.inft_client.admin.address,

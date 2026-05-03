@@ -12,6 +12,12 @@ services:
       MONGODB_DB: ${MONGODB_DB:-computepool}
       # OpenAI shim dev-passthrough auth (off in prod)
       CP_OPENAI_AUTH_DEV_PASSTHROUGH: ${CP_OPENAI_AUTH_DEV_PASSTHROUGH:-}
+      # 0G chain + INFT (PoolINFT ERC-7857)
+      ZERO_G_CHAIN_RPC: ${ZERO_G_CHAIN_RPC:-https://evmrpc-testnet.0g.ai}
+      ZERO_G_CHAIN_ID: ${ZERO_G_CHAIN_ID:-16602}
+      ZERO_G_STORAGE_INDEXER_URL: ${ZERO_G_STORAGE_INDEXER_URL:-https://indexer-storage-testnet-turbo.0g.ai}
+      INFT_CONTRACT_ADDR: ${INFT_CONTRACT_ADDR:-}
+      INFT_ORACLE_PRIVATE_KEY: ${INFT_ORACLE_PRIVATE_KEY:-}
       # Chain
       SEPOLIA_RPC_URL: ${SEPOLIA_RPC_URL:-https://evmrpc-testnet.0g.ai}
       USDC_ADDRESS: ${USDC_ADDRESS:-0xa1B71D35B9B46BA5b8f579B8e5d97C3497678189}
