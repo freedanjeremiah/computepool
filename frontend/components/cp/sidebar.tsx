@@ -6,6 +6,7 @@ import { useT, FONT_BODY, FONT_MONO } from "./theme";
 import { Logo } from "./logo";
 import { Badge, Button } from "./primitives";
 import { useWallet } from "@/lib/use-wallet";
+import { useBreakpoint } from "@/lib/use-breakpoint";
 
 type Item = { id: string; label: string; icon: string; path: string };
 
@@ -17,39 +18,68 @@ const ITEMS: Item[] = [
   { id: "/payments", label: "Payments",  icon: "⤳", path: "/dashboard/payments" },
 ];
 
-export function Sidebar({ active }: { active: string }) {
+export function Sidebar({ active, open, onClose }: {
+  active: string;
+  open?: boolean;
+  onClose?: () => void;
+}) {
   const T = useT();
+  const isMobile = useBreakpoint();
+
+  const asideStyle: React.CSSProperties = isMobile ? {
+    position: "fixed", top: 0, left: 0,
+    width: 240, height: "100vh",
+    background: T.surface, borderRight: `1px solid ${T.border}`,
+    display: "flex", flexDirection: "column", padding: "24px 0", flexShrink: 0,
+    zIndex: 200,
+    transform: open ? "translateX(0)" : "translateX(-100%)",
+    transition: "transform 0.25s ease",
+    overflowY: "auto",
+  } : {
+    width: 240, background: T.surface, borderRight: `1px solid ${T.border}`,
+    display: "flex", flexDirection: "column", padding: "24px 0", flexShrink: 0,
+    position: "sticky", top: 0, height: "100vh",
+  };
+
   return (
-    <aside style={{
-      width: 240, background: T.surface, borderRight: `1px solid ${T.border}`,
-      display: "flex", flexDirection: "column", padding: "24px 0", flexShrink: 0,
-      position: "sticky", top: 0, height: "100vh",
-    }}>
-      <div style={{ padding: "0 20px 24px" }}>
-        <Link href="/" style={{ cursor: "pointer", textDecoration: "none" }}><Logo size={22}/></Link>
-      </div>
-      <nav style={{ display: "flex", flexDirection: "column", gap: 2, padding: "0 8px" }}>
-        {ITEMS.map((it) => {
-          const on = active === it.id;
-          return (
-            <Link key={it.id} href={it.path} style={{
-              display: "flex", alignItems: "center", gap: 12,
-              height: 40, padding: "0 12px",
-              fontFamily: FONT_BODY, fontSize: 14, fontWeight: 500,
-              color: on ? T.primary : T.text2,
-              background: on ? T.primaryLight : "transparent",
-              borderLeft: on ? `3px solid ${T.primary}` : "3px solid transparent",
-              cursor: "pointer", borderRadius: 0, textDecoration: "none",
-            }}>
-              <span style={{ fontSize: 14, width: 18, textAlign: "center" }}>{it.icon}</span>
-              {it.label}
-            </Link>
-          );
-        })}
-      </nav>
-      <div style={{ flex: 1 }}/>
-      <SidebarWalletFooter/>
-    </aside>
+    <>
+      {/* Mobile backdrop */}
+      {isMobile && open && (
+        <div
+          onClick={onClose}
+          style={{
+            position: "fixed", inset: 0, zIndex: 199,
+            background: "rgba(0,0,0,0.4)",
+          }}
+        />
+      )}
+      <aside style={asideStyle}>
+        <div style={{ padding: "0 20px 24px" }}>
+          <Link href="/" style={{ cursor: "pointer", textDecoration: "none" }}><Logo size={22}/></Link>
+        </div>
+        <nav style={{ display: "flex", flexDirection: "column", gap: 2, padding: "0 8px" }}>
+          {ITEMS.map((it) => {
+            const on = active === it.id;
+            return (
+              <Link key={it.id} href={it.path} onClick={onClose} style={{
+                display: "flex", alignItems: "center", gap: 12,
+                height: 40, padding: "0 12px",
+                fontFamily: FONT_BODY, fontSize: 14, fontWeight: 500,
+                color: on ? T.primary : T.text2,
+                background: on ? T.primaryLight : "transparent",
+                borderLeft: on ? `3px solid ${T.primary}` : "3px solid transparent",
+                cursor: "pointer", borderRadius: 0, textDecoration: "none",
+              }}>
+                <span style={{ fontSize: 14, width: 18, textAlign: "center" }}>{it.icon}</span>
+                {it.label}
+              </Link>
+            );
+          })}
+        </nav>
+        <div style={{ flex: 1 }}/>
+        <SidebarWalletFooter/>
+      </aside>
+    </>
   );
 }
 
