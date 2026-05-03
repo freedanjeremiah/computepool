@@ -8,7 +8,7 @@
 
 | PR | Title | Commits | What it adds |
 |---|---|---:|---|
-| [**KeeperHub#1106**](https://github.com/KeeperHub/keeperhub/pull/1106) | `feat: add Superfluid protocol` | 12 | Native KH actions for Superfluid: `createPool`, `updateMemberUnits`, `distributeFlow`. Any KH workflow can now stream tokens per-second without bespoke contract calls. |
+| [**KeeperHub#1106**](https://github.com/KeeperHub/keeperhub/pull/1106) | `feat: add Superfluid protocol` | 12 | Native KH actions for Superfluid ([protocol-monorepo](https://github.com/superfluid-finance/protocol-monorepo)): `createPool`, `updateMemberUnits`, `distributeFlow`. Any KH workflow can now stream tokens per-second without bespoke contract calls. |
 | [**KeeperHub#1105**](https://github.com/KeeperHub/keeperhub/pull/1105) | `feat: add Coalition plugin (multi-party on-chain commitments with slashing)` | 18 | First-class primitive for "N parties commit on-chain to do a thing; if any breach, the keeper slashes." Useful for any multi-operator workflow that touches money. |
 
 Specs in this repo:

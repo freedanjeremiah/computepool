@@ -85,7 +85,7 @@ Explorer: <https://chainscan-galileo.0g.ai>
 | `Coalition` *(N-party operator commitments + slashing)* | [`0x6647E81040a3E9BF658e107360c638c5DD04d1eF`](https://chainscan-galileo.0g.ai/address/0x6647E81040a3E9BF658e107360c638c5DD04d1eF) |
 | `PoolINFT` *(ERC-7857 INFT per pool)* | [`0xe57192EB63433A5A4f76C9E5F33c3f2a64AeeFd4`](https://chainscan-galileo.0g.ai/address/0xe57192EB63433A5A4f76C9E5F33c3f2a64AeeFd4) |
 
-**Honest disclosure.** The forwarder addresses above are **not** the canonical Superfluid CREATE2 addresses (the canonical deployer's nonce isn't available on a fresh chain). Bytecode + ABI are byte-identical, so any standard Superfluid client (`@superfluid-finance/sdk-core`, viem, ethers) works unmodified — just point at these addresses on 0G Galileo.
+**Honest disclosure.** The forwarder addresses above are **not** the canonical Superfluid CREATE2 addresses (the canonical deployer's nonce isn't available on a fresh chain). Bytecode + ABI are byte-identical to the upstream Superfluid Protocol monorepo — <https://github.com/superfluid-finance/protocol-monorepo> — so any standard Superfluid client (`@superfluid-finance/sdk-core`, viem, ethers) works unmodified; just point at these addresses on 0G Galileo.
 
 How ComputePool calls these: [`orchestrator/onchain.py`](../../orchestrator/onchain.py) (`createPool`, `updateMemberUnits`, `distributeFlow` via web3.py) + [`orchestrator/economics.py`](../../orchestrator/economics.py) (lifecycle).
 
