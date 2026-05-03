@@ -10,6 +10,8 @@ services:
     environment:
       MONGODB_URI: ${MONGODB_URI:-mongodb+srv://maintainer_philix:qwertyuiop@carbonpi.hiozz58.mongodb.net/?retryWrites=true&w=majority}
       MONGODB_DB: ${MONGODB_DB:-computepool}
+      # OpenAI shim dev-passthrough auth (off in prod)
+      CP_OPENAI_AUTH_DEV_PASSTHROUGH: ${CP_OPENAI_AUTH_DEV_PASSTHROUGH:-}
       # Chain
       SEPOLIA_RPC_URL: ${SEPOLIA_RPC_URL:-https://evmrpc-testnet.0g.ai}
       USDC_ADDRESS: ${USDC_ADDRESS:-0xa1B71D35B9B46BA5b8f579B8e5d97C3497678189}

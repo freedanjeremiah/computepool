@@ -51,7 +51,7 @@ def signer():
 
 @pytest.fixture
 def pool():
-    return {"name": "p1", "model": "m", "state": "loaded", "inft_token_id": None}
+    return {"name": "p1", "model": "m", "loaded": True, "inft_token_id": None}
 
 
 @pytest.mark.asyncio

@@ -9,7 +9,7 @@ from orchestrator.api.openai_compat import build_router
 
 @pytest.fixture
 def fake_pool():
-    return {"name": "p1", "model": "Qwen/Qwen2.5-3B-Instruct", "state": "loaded", "inft_token_id": None}
+    return {"name": "p1", "model": "Qwen/Qwen2.5-3B-Instruct", "loaded": True, "inft_token_id": None}
 
 
 def _make_app(*, pools, inft_client=None):
@@ -51,8 +51,8 @@ async def test_models_lists_loaded_pools_when_no_inft(fake_pool, monkeypatch):
 @pytest.mark.asyncio
 async def test_models_filters_by_inft_authorization(monkeypatch):
     monkeypatch.setenv("CP_OPENAI_AUTH_DEV_PASSTHROUGH", "1")
-    pool_a = {"name": "p1", "model": "x", "state": "loaded", "inft_token_id": 7}
-    pool_b = {"name": "p2", "model": "y", "state": "loaded", "inft_token_id": 8}
+    pool_a = {"name": "p1", "model": "x", "loaded": True, "inft_token_id": 7}
+    pool_b = {"name": "p2", "model": "y", "loaded": True, "inft_token_id": 8}
     inft = AsyncMock()
     # caller authorized for token 7 only
     async def is_auth(*, token_id, user):
@@ -70,8 +70,8 @@ async def test_models_filters_by_inft_authorization(monkeypatch):
 @pytest.mark.asyncio
 async def test_models_includes_unguarded_pools_when_no_client(monkeypatch):
     monkeypatch.setenv("CP_OPENAI_AUTH_DEV_PASSTHROUGH", "1")
-    pool_g = {"name": "guarded", "model": "x", "state": "loaded", "inft_token_id": 99}
-    pool_u = {"name": "unguarded", "model": "y", "state": "loaded", "inft_token_id": None}
+    pool_g = {"name": "guarded", "model": "x", "loaded": True, "inft_token_id": 99}
+    pool_u = {"name": "unguarded", "model": "y", "loaded": True, "inft_token_id": None}
     app = _make_app(pools=[pool_g, pool_u], inft_client=None)
     addr = "0x" + "ab" * 20
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://t") as c:

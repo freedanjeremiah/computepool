@@ -50,7 +50,7 @@ def signer():
 
 @pytest.fixture
 def loaded_pool():
-    return {"name": "p1", "model": "Qwen/Qwen2.5-3B-Instruct", "state": "loaded", "inft_token_id": None}
+    return {"name": "p1", "model": "Qwen/Qwen2.5-3B-Instruct", "loaded": True, "inft_token_id": None}
 
 
 @pytest.mark.asyncio
@@ -108,7 +108,7 @@ async def test_chat_completions_404_for_unknown_model(signer, monkeypatch):
 @pytest.mark.asyncio
 async def test_chat_completions_403_when_inft_unauthorized(signer, monkeypatch):
     monkeypatch.setenv("CP_OPENAI_AUTH_DEV_PASSTHROUGH", "1")
-    pool = {"name": "p1", "model": "x", "state": "loaded", "inft_token_id": 7}
+    pool = {"name": "p1", "model": "x", "loaded": True, "inft_token_id": 7}
     from unittest.mock import AsyncMock
     inft = AsyncMock()
     inft.is_authorized = AsyncMock(return_value=False)

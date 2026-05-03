@@ -271,8 +271,12 @@ async def lifespan(app: FastAPI):
         # OpenAI-compatible shim. Resolves a pool by name on each call, then delegates
         # to the same `run_inference` / `run_inference_stream` adapters used by the
         # native /pools/{name}/infer routes — so /v1/* sees the same worker pipeline.
+        async def _openai_load_pool(pool_name: str) -> dict | None:
+            """Pool lookup for the OpenAI shim — wallet-authenticated, not owner-scoped."""
+            return await db.pools().find_one({"name": pool_name, "loaded": True})
+
         async def _openai_run(*, pool_name, prompt, max_tokens, temperature=0.7, **_):
-            pool = await _load_pool_for_infer(pool_name)
+            pool = await _openai_load_pool(pool_name)
             if pool is None:
                 from fastapi import HTTPException
                 raise HTTPException(404, f"no loaded pool named {pool_name!r}")
@@ -288,7 +292,7 @@ async def lifespan(app: FastAPI):
             }
 
         async def _openai_stream(*, pool_name, prompt, max_tokens, temperature=0.7, **_):
-            pool = await _load_pool_for_infer(pool_name)
+            pool = await _openai_load_pool(pool_name)
             if pool is None:
                 from fastapi import HTTPException
                 raise HTTPException(404, f"no loaded pool named {pool_name!r}")
@@ -297,9 +301,12 @@ async def lifespan(app: FastAPI):
             async for ev in run_inference_stream(pool=pool, body={
                 "prompt": prompt, "max_tokens": max_tokens, "temperature": temperature,
             }, request_id=request_id):
-                if ev.get("event") == "token" and "token" in ev:
-                    tokens_out += 1
-                    yield {"token": ev["token"]}
+                if ev.get("event") == "token":
+                    # Worker emits the token as `delta` (decoded text); fall back to `token` for forward-compat.
+                    tok = ev.get("delta") or ev.get("token") or ""
+                    if tok:
+                        tokens_out += 1
+                        yield {"token": tok}
                 elif ev.get("event") == "done":
                     yield {"done": True, "tokens_in": 0, "tokens_out": int(ev.get("tokens") or tokens_out)}
 

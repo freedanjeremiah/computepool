@@ -80,7 +80,7 @@ def build_router(
     @r.get("/models")
     async def list_models(caller_wallet: str = Depends(get_caller_wallet)):
         out = []
-        cursor = db.pools.find({"state": "loaded"})
+        cursor = db.pools.find({"loaded": True})
         async for p in cursor:
             tid = p.get("inft_token_id")
             if tid is not None and inft_client is not None:
@@ -107,9 +107,9 @@ def build_router(
             if stream_inference is None:
                 raise HTTPException(status_code=503, detail="streaming inference not configured")
             # Resolve pool first so 404 happens before we open the stream
-            pool = await db.pools.find_one({"name": req.model, "state": "loaded"})
+            pool = await db.pools.find_one({"name": req.model, "loaded": True})
             if pool is None:
-                pool = await db.pools.find_one({"model": req.model, "state": "loaded"})
+                pool = await db.pools.find_one({"model": req.model, "loaded": True})
             if pool is None:
                 raise HTTPException(status_code=404, detail=f"no loaded pool for model={req.model}")
             tid = pool.get("inft_token_id")
@@ -160,9 +160,9 @@ def build_router(
         if signer is None or run_inference is None:
             raise HTTPException(status_code=503, detail="chat completions not configured")
 
-        pool = await db.pools.find_one({"name": req.model, "state": "loaded"})
+        pool = await db.pools.find_one({"name": req.model, "loaded": True})
         if pool is None:
-            pool = await db.pools.find_one({"model": req.model, "state": "loaded"})
+            pool = await db.pools.find_one({"model": req.model, "loaded": True})
         if pool is None:
             raise HTTPException(status_code=404, detail=f"no loaded pool for model={req.model}")
 
