@@ -67,12 +67,10 @@ The mainnet deploy bypasses the upstream `SuperfluidFrameworkDeployer` (whose de
 
 ## Sponsor judging packets
 
-Three deep-dive READMEs — start here:
+Two deep-dive READMEs — start here:
 
 - **0G** ($15,000) — [`sponsors/0g/README.md`](sponsors/0g/README.md)
   › Pooled-GPU SDK behind a TEE-attested orchestrator · **full Superfluid framework live on 0G mainnet** · ERC-7857 PoolINFT as access primitive
-- **Gensyn — AXL** ($5,000) — [`sponsors/gensyn-axl/README.md`](sponsors/gensyn-axl/README.md)
-  › First production layer-pipelined LLM inference over AXL · prebuilt NVIDIA + CPU images with the AXL binary inside · native Tailscale in the same compose stack
 - **KeeperHub** ($5,000) — [`sponsors/keeperhub/README.md`](sponsors/keeperhub/README.md)
   › Two upstream PRs (#1106 Superfluid plugin, #1105 Coalition plugin) · five workflows drive the full x402 + Superfluid payment lifecycle
 
@@ -89,7 +87,7 @@ A single GPU can't fit a real model. We turn N small GPUs into one virtual one:
 - **P2P transport:** [`worker/axl_client.py`](worker/axl_client.py) + [`worker/framing.py`](worker/framing.py) carry hidden-state tensors and sampled tokens across [Gensyn AXL](https://github.com/gensyn-ai/axl) frames.
 - **Token loop:** [`worker/pipeline.py`](worker/pipeline.py) — `entry_generate` and `exit_loop` drive one forward hop per token until EOS. **Network overhead per token is negligible vs. the actual GPU compute** — the AXL hop is single-digit ms on a Tailscale mesh, while a single transformer forward pass on a consumer card is tens of ms; sharded throughput tracks single-GPU throughput within noise.
 - **Payments:** [`orchestrator/x402.py`](orchestrator/x402.py) gates `/pools/{n}/infer` with HTTP 402; [`orchestrator/economics.py`](orchestrator/economics.py) opens the Superfluid stream once the voucher settles.
-- **Coordination:** [`orchestrator/keeperhub.py`](orchestrator/keeperhub.py) drives five [KeeperHub workflows](keeperhub/) for coalition activation, pool wiring, stream start/stop, and slashing.
+- **Coordination:** [`orchestrator/keeperhub.py`](orchestrator/keeperhub.py) drives five KeeperHub workflows ([sponsor packet](sponsors/keeperhub/)) for coalition activation, pool wiring, stream start/stop, and slashing.
 - **Custody / iNFT:** [`orchestrator/inft/`](orchestrator/inft/) mints a per-pool ERC-7857 INFT on 0G with encrypted intelligence metadata.
 
 ---
@@ -99,7 +97,6 @@ A single GPU can't fit a real model. We turn N small GPUs into one virtual one:
 | Sponsor | What we shipped on top | Track relevance |
 |---|---|---|
 | **[0G](sponsors/0g/)** | **Full Superfluid framework deployed to 0G mainnet** (first known mainnet deploy of Superfluid on 0G — including the ERC-1820 registry via Nick's method, the agreement contracts, the SuperTokenFactory, both forwarders, and USDCx wrapping MockUSDC) · **pooled-GPU SDK** lets consumer cards qualify for 0G Compute together · orchestrator runs in **TEE** so 0G's signing flow stays intact · live ERC-7857 **PoolINFT per pool** | Best Agent Framework / Tooling **and** Best Autonomous Agents / iNFT |
-| **[Gensyn — AXL](sponsors/gensyn-axl/)** | **First production deployment of layer-pipelined LLM inference over AXL.** Multi-node by construction (entry node ⇄ exit node). Prebuilt NVIDIA + CPU Docker images = **one-line deploy**. **Tailscale-native** — zero exposed ports. | Best Application of AXL — depth, multi-node, real utility |
 | **[KeeperHub](sponsors/keeperhub/)** | Five workflows that drive the full demo · upstream [**Superfluid plugin (#1106)**](https://github.com/KeeperHub/keeperhub/pull/1106) · upstream [**Coalition plugin (#1105)**](https://github.com/KeeperHub/keeperhub/pull/1105) — multi-party on-chain commitments with slashing · agents pay autonomously via **x402** | Best Innovative Use **and** Best Integration (payments + framework) |
 
 Each sponsor folder contains the full breakdown — what we built, where it lives in the code, and how to verify it.
@@ -125,7 +122,6 @@ Each sponsor folder contains the full breakdown — what we built, where it live
 ├── frontend/              Next.js 16 / React 19 dashboard + pitch deck
 ├── facilitator/           x402 facilitator (relayer for transferWithAuthorization)
 ├── contracts/             Foundry — PoolINFT.sol, MockUSDC.sol, deploy scripts
-├── keeperhub/             Five workflow JSON exports (re-importable)
 ├── docker/                Multi-stage Dockerfile (Go for AXL + Python for app)
 ├── scripts/
 │   ├── deploy_mainnet.py             PoolINFT + MockUSDC + demo (resume-safe state)
