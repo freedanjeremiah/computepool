@@ -93,16 +93,7 @@ How ComputePool calls these: [`orchestrator/onchain.py`](../../orchestrator/onch
 
 ---
 
-## Track qualification
 
-Hits **both** 0G prize tracks.
-
-| Track | How we satisfy it |
-|---|---|
-| **Best Agent Framework / Tooling** ($7,500) | TEE-attested pooling SDK is a **new infrastructure primitive other builders can use** — onboards consumer GPUs to 0G Compute without touching 0G's signing model. Plus first per-second money primitive on 0G via Superfluid. |
-| **Best Autonomous Agents / iNFT** ($7,500) | ERC-7857 PoolINFT is a real access primitive: encrypted intelligence on 0G Storage, sealed to the INFT holder's pubkey, royalties stream automatically through Superfluid pool units. Token = pool. |
-
----
 
 ## File index
 
