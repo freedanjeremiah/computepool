@@ -33,7 +33,7 @@ Full tx hash log (deploys + 16 demo txs covering INFT mint / clone-with-proof / 
 >
 > The per-token network hop adds **single-digit milliseconds** on top of the actual forward pass — negligible next to the GPU compute itself, because AXL keeps the hidden-state transport peer-to-peer with no orchestrator round-trip.
 
-**Mainnet-deployed · Built for ETHGlobal 2026 · Hits all three sponsor tracks: 0G, Gensyn (AXL), KeeperHub.**
+**Mainnet-deployed · Hits both sponsor tracks: 0G, KeeperHub.**
 
 | | |
 |---|---|

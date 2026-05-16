@@ -1,4 +1,4 @@
-# ETHGlobal submission — form copy
+# Submission — form copy
 
 Drop-in answers for each field on the submission form. Update in place as you fill it out.
 

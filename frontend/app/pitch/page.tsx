@@ -61,7 +61,7 @@ function Stat({ value, label, color = ACCENT, sub }: { value: string; label: str
   );
 }
 
-function PartnerHeader({ src, name, eyebrow, color }: { src: string; name: string; eyebrow: string; color: string }) {
+function PartnerHeader({ src, name, eyebrow, color }: { src?: string; name: string; eyebrow: string; color: string }) {
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 18, marginBottom: 22 }}>
       <div style={{ position: "relative", width: 64, height: 64, flexShrink: 0 }}>
@@ -70,8 +70,14 @@ function PartnerHeader({ src, name, eyebrow, color }: { src: string; name: strin
           background: `radial-gradient(circle, ${color}33, transparent 70%)`,
           animation: "pitch-pulse 2.4s ease-in-out infinite",
         }}/>
-        <img src={src} alt={name} width={64} height={64}
-          style={{ width: 64, height: 64, borderRadius: 14, position: "relative", border: `1px solid ${BORDER}`, background: SURFACE_2, objectFit: "cover" }}/>
+        {src ? (
+          <img src={src} alt={name} width={64} height={64}
+            style={{ width: 64, height: 64, borderRadius: 14, position: "relative", border: `1px solid ${BORDER}`, background: SURFACE_2, objectFit: "cover" }}/>
+        ) : (
+          <div style={{ width: 64, height: 64, borderRadius: 14, position: "relative", border: `1px solid ${BORDER}`, background: SURFACE_2, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: FONT_DISPLAY, fontWeight: 600, fontSize: 22, color }}>
+            {name.trim().charAt(0).toUpperCase()}
+          </div>
+        )}
       </div>
       <div>
         <Eyebrow color={color}>{eyebrow}</Eyebrow>
@@ -636,7 +642,6 @@ const SLIDES: Slide[] = [
     content: (
       <div>
         <PartnerHeader
-          src="https://ethglobal.b-cdn.net/organizations/8exbf/square-logo/default.png"
           name="Keeperhub"
           eyebrow="Upstream contributions"
           color={SUPER}
@@ -690,7 +695,6 @@ const SLIDES: Slide[] = [
     content: (
       <div>
         <PartnerHeader
-          src="https://ethglobal.b-cdn.net/organizations/g8xu4/square-logo/default.png"
           name="0G"
           eyebrow="Protocol contributions"
           color="#4ADE80"
@@ -743,7 +747,6 @@ const SLIDES: Slide[] = [
     content: (
       <div>
         <PartnerHeader
-          src="https://ethglobal.b-cdn.net/organizations/zaxt3/square-logo/default.png"
           name="AXL · Gensyn"
           eyebrow="Transport + deployment"
           color={X402}

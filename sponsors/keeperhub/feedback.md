@@ -145,4 +145,4 @@ Tracing a failing workflow run through the dashboard is slower than tailing the 
 
 ---
 
-*Submitted as honest builder feedback during ETHGlobal Open Agents. Amounts and rules on the hackathon prize page supersede any figures cited elsewhere.*
+*Submitted as honest builder feedback. Amounts and rules on the official prize page supersede any figures cited elsewhere.*
