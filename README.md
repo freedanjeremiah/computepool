@@ -1,8 +1,32 @@
 # ComputePool
 
-<img width="2072" height="1023" alt="image" src="https://github.com/user-attachments/assets/1de84110-acd3-4677-a234-f6fbd0bf1145" />
+> **🚀 Live on 0G mainnet** — chainId `16661` · RPC `https://evmrpc.0g.ai` · explorer <https://chainscan.0g.ai>
 
-> **🚀 Live on 0G mainnet (chainId 16661).** PoolINFT, MockUSDC, USDCx, and the full Superfluid framework are deployed and proven on mainnet — including the ERC-1820 registry (first time on 0G mainnet, via Nick's method). Full address book + tx hashes in [`MAINNET_DEPLOYMENT.md`](MAINNET_DEPLOYMENT.md).
+### Mainnet contracts (click any address for Chainscan)
+
+| Layer | Contract | Mainnet address |
+|---|---|---|
+| App | **PoolINFT** (ERC-7857) | [`0x4B379c052a315DAcf20Cf074bEaC34c415C6ca98`](https://chainscan.0g.ai/address/0x4B379c052a315DAcf20Cf074bEaC34c415C6ca98) |
+| App | **MockUSDC** (EIP-3009, 6 dp) | [`0xD54C8C98752D8dbcb429914F23aAFb39C617Dcf4`](https://chainscan.0g.ai/address/0xD54C8C98752D8dbcb429914F23aAFb39C617Dcf4) |
+| App | **USDCx** (Super Token wrap of USDC) | [`0x8f0212376639142f2523259c9faBA854dAEbB26a`](https://chainscan.0g.ai/address/0x8f0212376639142f2523259c9faBA854dAEbB26a) |
+| Superfluid | **GDAv1Forwarder** (pools + flow) | [`0xA1cee3ba336E6B0E64BEBE5790579Aa5a73E8eb8`](https://chainscan.0g.ai/address/0xA1cee3ba336E6B0E64BEBE5790579Aa5a73E8eb8) |
+| Superfluid | **CFAv1Forwarder** (sender → receiver) | [`0xE80c08440a0b75654bF409d539c7A40D4cEFB3E6`](https://chainscan.0g.ai/address/0xE80c08440a0b75654bF409d539c7A40D4cEFB3E6) |
+| Superfluid | Host (proxy) | [`0xCd556fD9876f3873d54851DbB5B9db211352f7a7`](https://chainscan.0g.ai/address/0xCd556fD9876f3873d54851DbB5B9db211352f7a7) |
+| Superfluid | TestGovernance | [`0x461f186B465D6d3Cc2F075D0b86e7d9a74217C4B`](https://chainscan.0g.ai/address/0x461f186B465D6d3Cc2F075D0b86e7d9a74217C4B) |
+| Superfluid | ConstantFlowAgreementV1 impl | [`0xEE79A2b4345491Ec254561078E771b5964b8A81D`](https://chainscan.0g.ai/address/0xEE79A2b4345491Ec254561078E771b5964b8A81D) |
+| Superfluid | GeneralDistributionAgreementV1 impl | [`0x0b3aB95BfCC23Dc01359949EaB6847243f9C7989`](https://chainscan.0g.ai/address/0x0b3aB95BfCC23Dc01359949EaB6847243f9C7989) |
+| Superfluid | InstantDistributionAgreementV1 impl | [`0xbcD147DacD40E08D4B0CEB50f35A728C828b464E`](https://chainscan.0g.ai/address/0xbcD147DacD40E08D4B0CEB50f35A728C828b464E) |
+| Superfluid | SuperfluidPool beacon | [`0x6985eE145a1ee549718b6F45af849E669f2f9Fd0`](https://chainscan.0g.ai/address/0x6985eE145a1ee549718b6F45af849E669f2f9Fd0) |
+| Superfluid | SuperToken logic | [`0x0220e822b65B9958599496Fb0b81FbcA5Cd2b22b`](https://chainscan.0g.ai/address/0x0220e822b65B9958599496Fb0b81FbcA5Cd2b22b) |
+| Superfluid | PoolAdminNFT | [`0xbf80f325147EA8E0d9283B390eEB37224513B9CA`](https://chainscan.0g.ai/address/0xbf80f325147EA8E0d9283B390eEB37224513B9CA) |
+| Superfluid | SuperTokenFactory (host-deployed proxy) | [`0xb3C4331aF06429F92557aE9F26f91F27f0256601`](https://chainscan.0g.ai/address/0xb3C4331aF06429F92557aE9F26f91F27f0256601) |
+| Dep | **ERC-1820 Registry** (Nick's method, first on 0G mainnet) | [`0x1820a4B7618BdE71Dce8cdc73aAB6C95905faD24`](https://chainscan.0g.ai/address/0x1820a4B7618BdE71Dce8cdc73aAB6C95905faD24) |
+| Demo | USDCx GDA pool (live, admin = deployer) | [`0x83Ba2f14EB1febb935919600162A07759E6A4eE8`](https://chainscan.0g.ai/address/0x83Ba2f14EB1febb935919600162A07759E6A4eE8) |
+| Identity | **Deployer** | [`0xEb13cc2b696D85584045390672AE05f7eAdeDBc4`](https://chainscan.0g.ai/address/0xEb13cc2b696D85584045390672AE05f7eAdeDBc4) |
+
+Full tx hash log (deploys + 16 demo txs covering INFT mint / clone-with-proof / authorize, EIP-3009 settle, USDC → USDCx upgrade, `GDA.createPool`, `gov.updateContracts`, ERC-1820 deploy) lives in **[`MAINNET_DEPLOYMENT.md`](MAINNET_DEPLOYMENT.md)**. Total mainnet spend: ~0.40 OG.
+
+<img width="2072" height="1023" alt="image" src="https://github.com/user-attachments/assets/1de84110-acd3-4677-a234-f6fbd0bf1145" />
 
 > **Production LLM inference on the consumer GPUs you already own — at near-zero latency overhead vs. a single big GPU.**
 > A 70B model needs ~140 GB of VRAM. An RTX 4090 has 24. ComputePool shards a model layer-wise across two (or more) consumer cards, streams hidden states peer-to-peer over [Gensyn AXL](https://github.com/gensyn-ai/axl), settles via x402 + Superfluid on **0G mainnet** (and Galileo testnet), and orchestrates everything through KeeperHub workflows.
@@ -20,43 +44,13 @@
 
 ---
 
-## 🌐 Mainnet deployment (0G mainnet · chainId 16661)
+## 🌐 Mainnet activity — what's proven on chain
 
-Every contract that the protocol depends on is live on 0G mainnet. Deployed cost: **~0.40 OG total** for the entire stack including 18+ Superfluid components, the ERC-1820 registry, application contracts, and ~16 demo transactions.
-
-### Application contracts
-
-| Contract | Mainnet address | What it is |
-|---|---|---|
-| **PoolINFT** (ERC-7857) | [`0x4B379c052a315DAcf20Cf074bEaC34c415C6ca98`](https://chainscan.0g.ai/address/0x4B379c052a315DAcf20Cf074bEaC34c415C6ca98) | One-NFT-per-pool intelligence access primitive |
-| **MockUSDC** (EIP-3009) | [`0xD54C8C98752D8dbcb429914F23aAFb39C617Dcf4`](https://chainscan.0g.ai/address/0xD54C8C98752D8dbcb429914F23aAFb39C617Dcf4) | 6-decimal, owner-mintable, EIP-3009 `transferWithAuthorization` for x402 settle |
-| **USDCx** (Super Token) | [`0x8f0212376639142f2523259c9faBA854dAEbB26a`](https://chainscan.0g.ai/address/0x8f0212376639142f2523259c9faBA854dAEbB26a) | Canonical Superfluid wrapper of MockUSDC |
-
-### Superfluid framework
-
-| Component | Mainnet address |
-|---|---|
-| **ERC-1820 Registry** (Nick's method) | [`0x1820a4B7618BdE71Dce8cdc73aAB6C95905faD24`](https://chainscan.0g.ai/address/0x1820a4B7618BdE71Dce8cdc73aAB6C95905faD24) |
-| TestGovernance | [`0x461f186B465D6d3Cc2F075D0b86e7d9a74217C4B`](https://chainscan.0g.ai/address/0x461f186B465D6d3Cc2F075D0b86e7d9a74217C4B) |
-| Superfluid Host (proxy) | [`0xCd556fD9876f3873d54851DbB5B9db211352f7a7`](https://chainscan.0g.ai/address/0xCd556fD9876f3873d54851DbB5B9db211352f7a7) |
-| ConstantFlowAgreementV1 impl | [`0xEE79A2b4345491Ec254561078E771b5964b8A81D`](https://chainscan.0g.ai/address/0xEE79A2b4345491Ec254561078E771b5964b8A81D) |
-| GeneralDistributionAgreementV1 impl | [`0x0b3aB95BfCC23Dc01359949EaB6847243f9C7989`](https://chainscan.0g.ai/address/0x0b3aB95BfCC23Dc01359949EaB6847243f9C7989) |
-| InstantDistributionAgreementV1 impl | [`0xbcD147DacD40E08D4B0CEB50f35A728C828b464E`](https://chainscan.0g.ai/address/0xbcD147DacD40E08D4B0CEB50f35A728C828b464E) |
-| SuperfluidPool beacon | [`0x6985eE145a1ee549718b6F45af849E669f2f9Fd0`](https://chainscan.0g.ai/address/0x6985eE145a1ee549718b6F45af849E669f2f9Fd0) |
-| SuperToken logic | [`0x0220e822b65B9958599496Fb0b81FbcA5Cd2b22b`](https://chainscan.0g.ai/address/0x0220e822b65B9958599496Fb0b81FbcA5Cd2b22b) |
-| PoolAdminNFT | [`0xbf80f325147EA8E0d9283B390eEB37224513B9CA`](https://chainscan.0g.ai/address/0xbf80f325147EA8E0d9283B390eEB37224513B9CA) |
-| SuperTokenFactory (host-deployed proxy) | [`0xb3C4331aF06429F92557aE9F26f91F27f0256601`](https://chainscan.0g.ai/address/0xb3C4331aF06429F92557aE9F26f91F27f0256601) |
-| **CFAv1Forwarder** | [`0xE80c08440a0b75654bF409d539c7A40D4cEFB3E6`](https://chainscan.0g.ai/address/0xE80c08440a0b75654bF409d539c7A40D4cEFB3E6) |
-| **GDAv1Forwarder** | [`0xA1cee3ba336E6B0E64BEBE5790579Aa5a73E8eb8`](https://chainscan.0g.ai/address/0xA1cee3ba336E6B0E64BEBE5790579Aa5a73E8eb8) |
-| **USDCx pool** (GDA pool over USDCx, admin = deployer) | [`0x83Ba2f14EB1febb935919600162A07759E6A4eE8`](https://chainscan.0g.ai/address/0x83Ba2f14EB1febb935919600162A07759E6A4eE8) |
-
-### Mainnet activity — what's proven on chain
+All addresses are at the top of this README; full tx-hash table in [`MAINNET_DEPLOYMENT.md`](MAINNET_DEPLOYMENT.md).
 
 **Application layer (7 demo txs):** mint 1,000,000 USDC · `PoolINFT.mint` · `USDC.transferWithAuthorization` (EIP-3009, twice) · `PoolINFT.authorizeUsage` · `PoolINFT.cloneWithProof` (oracle-signed) · plain ERC-20 transfer.
 
 **Superfluid layer (9 demo txs):** ERC-1820 registry deploy · `gov.updateContracts(factoryImpl)` · `factory.initializeCanonicalWrapperSuperTokens` · `factory.createCanonicalERC20Wrapper(USDC)` → USDCx · `USDC.approve(USDCx, 100)` · `USDCx.upgrade(100)` (USDC → USDCx confirmed by `totalSupply()`) · `GDA.createPool(USDCx, admin)` → live pool · trusted-forwarder enablement for both forwarders.
-
-All tx hashes with Chainscan links live in [`MAINNET_DEPLOYMENT.md`](MAINNET_DEPLOYMENT.md).
 
 ### Reproduce the deploy
 
